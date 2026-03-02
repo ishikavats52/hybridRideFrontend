@@ -1,0 +1,621 @@
+
+import React, { useState } from 'react';
+import {
+    StyleSheet,
+    Text,
+    View,
+    TouchableOpacity,
+    TextInput,
+    ScrollView,
+    Switch,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+import { faChevronLeft, faChair, faSuitcase, faUserFriends, faCalendarDays } from '@fortawesome/free-solid-svg-icons';
+import CalendarModal from '../Common/CalendarModal';
+import TimePickerModal from '../Common/TimePickerModal';
+import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { GOOGLE_MAPS_API_KEY } from '../../Config/maps';
+import { useAuth } from '../Context/AuthContext';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
+import poolService from '../../Services/poolService';
+
+const DriverPublishOutstationPoolScreen = () => {
+    const navigation = useNavigation();
+    const { user } = useAuth();
+
+    // Seat Counters
+    const [frontSeatCount, setFrontSeatCount] = useState(1);
+    const [middleRowCount, setMiddleRowCount] = useState(2);
+    const [backRowCount, setBackRowCount] = useState(0);
+
+    // Route State
+    const [origin, setOrigin] = useState('');
+    const [destination, setDestination] = useState('');
+    const [originCoords, setOriginCoords] = useState<number[] | null>(null);
+    const [destinationCoords, setDestinationCoords] = useState<number[] | null>(null);
+
+    // Toggle
+    const [isWomenOnly, setIsWomenOnly] = useState(false);
+
+    // Price per Row
+    const [frontPrice, setFrontPrice] = useState('45');
+    const [middlePrice, setMiddlePrice] = useState('35');
+    const [backPrice, setBackPrice] = useState('30');
+
+    // Calendar
+    const [showCalendar, setShowCalendar] = useState(false);
+    const [selectedDate, setSelectedDate] = useState('dd-mm-yyyy');
+
+    // Time Picker
+    const [showTimePicker, setShowTimePicker] = useState(false);
+    const [selectedTime, setSelectedTime] = useState('hh:mm');
+
+    const increment = (setter: React.Dispatch<React.SetStateAction<number>>, value: number, max: number) => {
+        if (value < max) setter(value + 1);
+    };
+
+    const decrement = (setter: React.Dispatch<React.SetStateAction<number>>, value: number) => {
+        if (value > 0) setter(value - 1);
+    };
+
+    return (
+        <SafeAreaView style={styles.container}>
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                    <FontAwesomeIcon icon={faChevronLeft} size={20} color="#111827" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Publish Outstation Pool</Text>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+
+                {/* Route Section */}
+                <View style={[styles.card, { zIndex: 1000, elevation: 10, overflow: 'visible' }]}>
+                    <View style={[styles.routeContainer, { zIndex: 1000, overflow: 'visible' }]}>
+                        <View style={styles.timeline}>
+                            <View style={[styles.dot, { backgroundColor: '#2DD4BF' }]} />
+                            <View style={styles.line} />
+                            <View style={[styles.dot, { backgroundColor: '#1E293B', borderRadius: 2 }]} />
+                        </View>
+                        <View style={[styles.routeInputs, { zIndex: 1000, overflow: 'visible' }]}>
+                            <View style={[styles.inputWrapper, { zIndex: 2000, elevation: 20, overflow: 'visible' }]}>
+                                <Text style={styles.inputLabel}>FROM</Text>
+                                <GooglePlacesAutocomplete
+                                    placeholder="Select Origin"
+                                    fetchDetails={true}
+                                    onPress={(data, details = null) => {
+                                        setOrigin(data.description);
+                                        if (details) {
+                                            setOriginCoords([details.geometry.location.lng, details.geometry.location.lat]);
+                                        }
+                                    }}
+                                    query={{ key: GOOGLE_MAPS_API_KEY, language: 'en' }}
+                                    enablePoweredByContainer={false}
+                                    minLength={2}
+                                    debounce={400}
+                                    keyboardShouldPersistTaps="handled"
+                                    textInputProps={{
+                                        placeholderTextColor: '#94A3B8',
+                                    }}
+                                    styles={{
+                                        container: { flex: 0, overflow: 'visible' },
+                                        textInput: styles.textInput,
+                                        listView: { position: 'absolute', top: 58, left: 0, right: 0, zIndex: 9999, elevation: 99, backgroundColor: '#FFF', borderRadius: 8, shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 } }
+                                    }}
+                                />
+                            </View>
+                            <View style={[styles.inputWrapper, { zIndex: 1000, elevation: 10, overflow: 'visible' }]}>
+                                <Text style={styles.inputLabel}>TO</Text>
+                                <GooglePlacesAutocomplete
+                                    placeholder="Select Destination"
+                                    fetchDetails={true}
+                                    onPress={(data, details = null) => {
+                                        setDestination(data.description);
+                                        if (details) {
+                                            setDestinationCoords([details.geometry.location.lng, details.geometry.location.lat]);
+                                        }
+                                    }}
+                                    query={{ key: GOOGLE_MAPS_API_KEY, language: 'en' }}
+                                    enablePoweredByContainer={false}
+                                    minLength={2}
+                                    debounce={400}
+                                    keyboardShouldPersistTaps="handled"
+                                    textInputProps={{
+                                        placeholderTextColor: '#94A3B8',
+                                    }}
+                                    styles={{
+                                        container: { flex: 0, overflow: 'visible' },
+                                        textInput: styles.textInput,
+                                        listView: { position: 'absolute', top: 58, left: 0, right: 0, zIndex: 9999, elevation: 99, backgroundColor: '#FFF', borderRadius: 8, shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 } }
+                                    }}
+                                />
+                            </View>
+                        </View>
+                    </View>
+                </View>
+
+                {/* Schedule Section */}
+                <View style={styles.card}>
+                    <Text style={styles.sectionTitle}>SCHEDULE</Text>
+                    <View style={styles.row}>
+                        <TouchableOpacity style={[styles.inputWrapper, { flex: 1, marginRight: 8 }]} onPress={() => setShowCalendar(true)}>
+                            <Text style={styles.inputLabel}>DATE</Text>
+                            <View style={styles.pickerInput}>
+                                <Text style={[styles.pickerText, selectedDate !== 'dd-mm-yyyy' && { color: '#111827' }]}>{selectedDate}</Text>
+                                <FontAwesomeIcon icon={faCalendarDays} size={14} color="#9CA3AF" />
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.inputWrapper, { flex: 1, marginLeft: 8 }]} onPress={() => setShowTimePicker(true)}>
+                            <Text style={styles.inputLabel}>TIME</Text>
+                            <View style={styles.pickerInput}>
+                                <Text style={[styles.pickerText, selectedTime !== 'hh:mm' && { color: '#111827' }]}>{selectedTime}</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* Pricing Section */}
+                <View style={styles.card}>
+                    <View style={styles.pricingHeader}>
+                        <Text style={styles.sectionTitle}>PRICING</Text>
+                        <View style={styles.vehicleTag}>
+                            <Text style={styles.vehicleTagText}>CURRENT VEHICLE</Text>
+                        </View>
+                    </View>
+
+                    {/* Front Seat */}
+                    <View style={styles.seatRow}>
+                        <View style={styles.seatIcon}>
+                            <FontAwesomeIcon icon={faChair} size={20} color="#111827" />
+                        </View>
+                        <View style={styles.seatInfo}>
+                            <Text style={styles.seatTitle}>Front Seat</Text>
+                            <Text style={styles.seatLimit}>MAX 1</Text>
+                        </View>
+                        <View style={styles.counter}>
+                            <TouchableOpacity onPress={() => decrement(setFrontSeatCount, frontSeatCount)} style={styles.counterBtn}>
+                                <Text style={styles.counterText}>-</Text>
+                            </TouchableOpacity>
+                            <Text style={styles.countValue}>{frontSeatCount}</Text>
+                            <TouchableOpacity onPress={() => increment(setFrontSeatCount, frontSeatCount, 1)} style={styles.counterBtn}>
+                                <Text style={styles.counterText}>+</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                    <View style={styles.priceInputRow}>
+                        <Text style={styles.currency}>₹</Text>
+                        <TextInput
+                            style={[styles.priceValue, { minWidth: 60, height: 40, paddingHorizontal: 10, padding: 0 }]}
+                            value={frontPrice}
+                            onChangeText={setFrontPrice}
+                            keyboardType="numeric"
+                        />
+                    </View>
+
+                    {/* Middle Row */}
+                    <View style={styles.divider} />
+                    <View style={styles.seatRow}>
+                        <View style={styles.seatIcon}>
+                            <FontAwesomeIcon icon={faUserFriends} size={20} color="#EF4444" />
+                        </View>
+                        <View style={styles.seatInfo}>
+                            <Text style={styles.seatTitle}>Middle Row</Text>
+                            <Text style={styles.seatLimit}>MAX 3</Text>
+                        </View>
+                        <View style={styles.counter}>
+                            <TouchableOpacity onPress={() => decrement(setMiddleRowCount, middleRowCount)} style={styles.counterBtn}>
+                                <Text style={styles.counterText}>-</Text>
+                            </TouchableOpacity>
+                            <Text style={styles.countValue}>{middleRowCount}</Text>
+                            <TouchableOpacity onPress={() => increment(setMiddleRowCount, middleRowCount, 3)} style={styles.counterBtn}>
+                                <Text style={styles.counterText}>+</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                    <View style={styles.priceInputRow}>
+                        <Text style={styles.currency}>₹</Text>
+                        <TextInput
+                            style={[styles.priceValue, { minWidth: 60, height: 40, paddingHorizontal: 10, padding: 0 }]}
+                            value={middlePrice}
+                            onChangeText={setMiddlePrice}
+                            keyboardType="numeric"
+                        />
+                    </View>
+
+                    {/* Back Row */}
+                    <View style={styles.divider} />
+                    <View style={styles.seatRow}>
+                        <View style={styles.seatIcon}>
+                            <FontAwesomeIcon icon={faSuitcase} size={20} color="#D97706" />
+                        </View>
+                        <View style={styles.seatInfo}>
+                            <Text style={styles.seatTitle}>Back Row</Text>
+                            <Text style={styles.seatLimit}>MAX 3</Text>
+                        </View>
+                        <View style={styles.counter}>
+                            <TouchableOpacity onPress={() => decrement(setBackRowCount, backRowCount)} style={styles.counterBtn}>
+                                <Text style={styles.counterText}>-</Text>
+                            </TouchableOpacity>
+                            <Text style={styles.countValue}>{backRowCount}</Text>
+                            <TouchableOpacity onPress={() => increment(setBackRowCount, backRowCount, 3)} style={styles.counterBtn}>
+                                <Text style={styles.counterText}>+</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                    <View style={styles.priceInputRow}>
+                        <Text style={styles.currency}>₹</Text>
+                        <TextInput
+                            style={[styles.priceValue, { minWidth: 60, height: 40, paddingHorizontal: 10, padding: 0 }]}
+                            value={backPrice}
+                            onChangeText={setBackPrice}
+                            keyboardType="numeric"
+                        />
+                    </View>
+
+                </View>
+
+                {/* Women Only */}
+                <View style={styles.toggleCard}>
+                    <View style={styles.toggleInfo}>
+                        <Text style={styles.toggleTitle}>Women Only Ride</Text>
+                        <Text style={styles.toggleDesc}>Visible only to female passengers</Text>
+                    </View>
+                    <Switch
+                        trackColor={{ false: "#E5E7EB", true: "#2DD4BF" }}
+                        thumbColor={"#FFFFFF"}
+                        onValueChange={setIsWomenOnly}
+                        value={isWomenOnly}
+                    />
+                </View>
+
+            </ScrollView>
+
+            <View style={styles.footer}>
+                <TouchableOpacity
+                    style={[
+                        styles.publishButton,
+                        (origin && destination && selectedDate !== 'dd-mm-yyyy' && selectedTime !== 'hh:mm')
+                            ? { backgroundColor: '#0F172A' }
+                            : { backgroundColor: '#CBD5E1' }
+                    ]}
+                    disabled={!(origin && destination && selectedDate !== 'dd-mm-yyyy' && selectedTime !== 'hh:mm')}
+                    onPress={async () => {
+                        try {
+                            const token = await AsyncStorage.getItem('userToken');
+
+                            // Parse '04-Feb-2026, 03:00 PM' matches formats from CalendarModal.tsx and TimePickerModal.tsx
+                            const [day, monthStr, year] = selectedDate.split('-');
+                            const [time, period] = selectedTime.split(' ');
+                            let [hour, minute] = time.split(':');
+
+                            const monthMap: { [key: string]: number } = {
+                                Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+                                Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
+                            };
+
+                            let h = parseInt(hour);
+                            if (period === 'PM' && h < 12) h += 12;
+                            if (period === 'AM' && h === 12) h = 0;
+
+                            const scheduledDateObj = new Date(parseInt(year), monthMap[monthStr], parseInt(day), h, parseInt(minute));
+                            const isoDateString = scheduledDateObj.toISOString();
+
+                            const response = await poolService.publishRide({
+                                type: 'outstation', // Matches Driver Outstation Pool
+                                originName: origin,
+                                originCoords: originCoords,
+                                destinationName: destination,
+                                destinationCoords: destinationCoords,
+                                scheduledTime: isoDateString,
+                                vehicle: user?.driverDetails?.vehicle?.model || "Outstation SUV",
+                                totalSeats: frontSeatCount + middleRowCount + backRowCount,
+                                pricePerSeat: Math.min(Number(frontPrice) || 45, Number(middlePrice) || 35, Number(backPrice) || 30), // Min advertised price fallback
+                                seatPricing: {
+                                    front: Number(frontPrice) || 45,
+                                    middle: Number(middlePrice) || 35,
+                                    back: Number(backPrice) || 30,
+                                },
+                                preferences: {
+                                    womenOnly: isWomenOnly
+                                }
+                            });
+
+                            if (response.success) {
+                                navigation.navigate('DriverMyTrips' as never);
+                            } else {
+                                Alert.alert('Publish Failed', response.message);
+                            }
+                        } catch (error: any) {
+                            console.error('Publish pool error:', error);
+                            Alert.alert('Error', error.response?.data?.message || 'Failed to publish. Ensure you are logged in.');
+                        }
+                    }}
+                >
+                    <Text style={[
+                        styles.publishButtonText,
+                        (origin && destination && selectedDate !== 'dd-mm-yyyy' && selectedTime !== 'hh:mm')
+                            ? { color: '#FFFFFF' }
+                            : { color: '#64748B' }
+                    ]}>Publish Outstation Pool</Text>
+                </TouchableOpacity>
+            </View>
+
+            <CalendarModal
+                visible={showCalendar}
+                onClose={() => setShowCalendar(false)}
+                onSelectDate={setSelectedDate}
+                selectedDate={selectedDate === 'dd-mm-yyyy' ? '04-Feb-2026' : selectedDate}
+            />
+            <TimePickerModal
+                visible={showTimePicker}
+                onClose={() => setShowTimePicker(false)}
+                onSelectTime={setSelectedTime}
+                selectedTime={selectedTime === 'hh:mm' ? '12:00 PM' : selectedTime}
+            />
+
+        </SafeAreaView>
+    );
+};
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#F3F4F6',
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        backgroundColor: '#FFFFFF',
+    },
+    backButton: {
+        padding: 8,
+        marginRight: 8,
+    },
+    headerTitle: {
+        flex: 1,
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#111827',
+    },
+    content: {
+        padding: 20,
+        paddingBottom: 100,
+    },
+    card: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        padding: 20,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    sectionTitle: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#111827',
+        marginBottom: 16,
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+    },
+    // Route Styles
+    routeContainer: {
+        flexDirection: 'row',
+    },
+    timeline: {
+        alignItems: 'center',
+        marginRight: 16,
+        marginTop: 30, // Align with input text
+    },
+    dot: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+    },
+    line: {
+        width: 2,
+        height: 40,
+        backgroundColor: '#E5E7EB',
+        marginVertical: 4,
+        borderStyle: 'dashed', // Dashed not directly supported on View, using color for simplicity or need custom
+    },
+    routeInputs: {
+        flex: 1,
+    },
+    inputWrapper: {
+        marginBottom: 16,
+    },
+    inputLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#9CA3AF',
+        marginBottom: 6,
+        letterSpacing: 0.5,
+    },
+    textInput: {
+        backgroundColor: '#F9FAFB',
+        borderWidth: 1,
+        borderColor: '#E5E7EB', // Dashed border simulated
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#111827',
+        borderStyle: 'dashed', // Only works on iOS for border style
+    },
+    // Schedule Styles
+    row: {
+        flexDirection: 'row',
+    },
+    pickerInput: {
+        backgroundColor: '#F9FAFB',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        alignItems: 'center',
+        borderStyle: 'dashed',
+    },
+    pickerText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#9CA3AF',
+    },
+    // Pricing Styles
+    pricingHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    vehicleTag: {
+        backgroundColor: '#E0F2F1',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+    },
+    vehicleTagText: {
+        color: '#0D9488',
+        fontSize: 10,
+        fontWeight: '800',
+    },
+    seatRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    seatIcon: {
+        width: 40,
+        alignItems: 'center',
+    },
+    seatInfo: {
+        flex: 1,
+    },
+    seatTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#111827',
+    },
+    seatLimit: {
+        fontSize: 10,
+        color: '#9CA3AF',
+        fontWeight: '700',
+    },
+    counter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F3F4F6',
+        borderRadius: 8,
+        padding: 4,
+    },
+    counterBtn: {
+        width: 32,
+        height: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 6,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 1,
+        elevation: 1,
+    },
+    counterText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#111827',
+    },
+    countValue: {
+        width: 30,
+        textAlign: 'center',
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#111827',
+    },
+    priceInputRow: {
+        flexDirection: 'row',
+        backgroundColor: '#F9FAFB',
+        padding: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    currency: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#9CA3AF',
+        marginRight: 8,
+    },
+    priceValue: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#111827',
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#F3F4F6',
+        marginVertical: 16,
+    },
+    // Toggle Styles
+    toggleCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        padding: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    toggleInfo: {
+        flex: 1,
+    },
+    toggleTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#111827',
+        marginBottom: 4,
+    },
+    toggleDesc: {
+        fontSize: 12,
+        color: '#6B7280',
+    },
+    // Footer
+    footer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: '#FFFFFF',
+        padding: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#F3F4F6',
+    },
+    publishButton: {
+        backgroundColor: '#CBD5E1', // Disabled/Light Slate Look
+        paddingVertical: 16,
+        borderRadius: 16,
+        alignItems: 'center',
+    },
+    publishButtonText: {
+        fontSize: 16,
+        fontWeight: '800',
+        color: '#64748B',
+    }
+});
+
+export default DriverPublishOutstationPoolScreen;
