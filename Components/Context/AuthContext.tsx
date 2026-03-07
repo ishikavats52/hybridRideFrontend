@@ -1,7 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { authService } from '../../Services/authService';
 
+GoogleSignin.configure({
+    webClientId: '110831328035-bqft18nqtfk06o3qrc78d414s731m8b5.apps.googleusercontent.com',
+});
 interface User {
     _id: string;
     name: string;
@@ -50,6 +54,7 @@ interface AuthContextType {
     user: User | null;
     isLoading: boolean;
     login: (credentials: any) => Promise<void>;
+    loginWithGoogle: (role: string) => Promise<void>;
     register: (userData: any) => Promise<void>;
     logout: () => Promise<void>;
     refetchUser: () => Promise<void>;
@@ -109,6 +114,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
+    const loginWithGoogle = async (role: string = 'passenger') => {
+        setIsLoading(true);
+        try {
+            await GoogleSignin.hasPlayServices();
+            const userInfo = await GoogleSignin.signIn();
+
+            console.log('Google Sign-In raw response:', JSON.stringify(userInfo));
+
+            if (userInfo.type === 'cancelled') {
+                console.log('Google Sign-In was cancelled');
+                return;
+            }
+
+            if (userInfo.type !== 'success' || !userInfo.data) {
+                throw new Error('Google Sign-In failed or cancelled');
+            }
+
+            const idToken = userInfo.data.idToken;
+
+            if (!idToken) throw new Error('No ID token found in Google response. Check your webClientId configuration or SHA-1 hashes.');
+
+            const data = await authService.loginWithGoogle(idToken, role);
+            setUser(data.data);
+        } catch (error) {
+            console.error('Google sign-in error:', error);
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const register = async (userData: any) => {
         setIsLoading(true);
         try {
@@ -142,7 +178,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, isLoading, login, register, logout, refetchUser }}>
+        <AuthContext.Provider value={{ user, isLoading, login, loginWithGoogle, register, logout, refetchUser }}>
             {children}
         </AuthContext.Provider>
     );

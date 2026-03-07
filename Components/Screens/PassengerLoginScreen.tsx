@@ -17,7 +17,7 @@ import { useAuth } from '../Context/AuthContext';
 
 const PassengerLoginScreen = ({ route }: any) => {
     const navigation = useNavigation();
-    const { login, isLoading } = useAuth();
+    const { login, loginWithGoogle, isLoading } = useAuth();
     const { userType } = route.params || { userType: 'PASSENGER' };
     const isDriver = userType === 'DRIVER';
 
@@ -129,13 +129,23 @@ const PassengerLoginScreen = ({ route }: any) => {
                     <Text style={styles.socialButtonText}>WhatsApp</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                    style={styles.socialButton}
-                    onPress={() => navigation.navigate('ProfileSetup' as never, { userType } as never)}
-                >
-                    <FontAwesomeIcon icon={faGoogle} size={24} color="#EA4335" style={{ marginRight: 10 }} />
-                    <Text style={styles.socialButtonText}>Google</Text>
-                </TouchableOpacity>
+                {!isDriver && (
+                    <TouchableOpacity
+                        style={styles.socialButton}
+                        disabled={isLoading}
+                        onPress={async () => {
+                            try {
+                                await loginWithGoogle(userType.toLowerCase());
+                            } catch (error: any) {
+                                console.error(error);
+                                Alert.alert('Google Login Failed', 'Could not sign in with Google');
+                            }
+                        }}
+                    >
+                        <FontAwesomeIcon icon={faGoogle} size={24} color="#EA4335" style={{ marginRight: 10 }} />
+                        <Text style={styles.socialButtonText}>{isLoading ? 'Signing in...' : 'Google'}</Text>
+                    </TouchableOpacity>
+                )}
 
                 {/* Footer */}
                 <View style={styles.footerContainer}>

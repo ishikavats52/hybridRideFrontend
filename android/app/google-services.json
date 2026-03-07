@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "110831328035",
+    "project_id": "hybridride-e3559",
+    "storage_bucket": "hybridride-e3559.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:110831328035:android:e6ed57a64eadc2b6d74a96",
+        "android_client_info": {
+          "package_name": "com.hybridride"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "110831328035-hn08u8tm4i76e25b4taohb94ko50183f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hybridride",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "110831328035-bqft18nqtfk06o3qrc78d414s731m8b5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXhbCB7KAMnTUC_jXNWDkalG82nSd7Swo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "110831328035-bqft18nqtfk06o3qrc78d414s731m8b5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

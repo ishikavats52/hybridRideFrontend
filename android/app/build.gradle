@@ -72,6 +72,17 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+def getMapsApiKey() {
+    def localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        Properties properties = new Properties()
+        properties.load(localPropertiesFile.newDataInputStream())
+        def key = properties.getProperty("MAPS_API_KEY")
+        if (key != null) return key
+    }
+    return project.hasProperty("MAPS_API_KEY") ? project.properties["MAPS_API_KEY"] : ""
+}
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -96,7 +107,7 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
-            manifestPlaceholders = [ MAPS_API_KEY: project.properties["MAPS_API_KEY"] ]
+            manifestPlaceholders = [ MAPS_API_KEY: getMapsApiKey() ]
         }
         release {
             // Caution! In production, you need to generate your own keystore file.
@@ -104,7 +115,7 @@ android {
             signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-            manifestPlaceholders = [ MAPS_API_KEY: project.properties["MAPS_API_KEY"] ]
+            manifestPlaceholders = [ MAPS_API_KEY: getMapsApiKey() ]
         }
     }
 }
@@ -119,3 +130,4 @@ dependencies {
         implementation jscFlavor
     }
 }
+apply plugin: 'com.google.gms.google-services'
