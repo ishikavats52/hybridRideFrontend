@@ -137,8 +137,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
             const data = await authService.loginWithGoogle(idToken, role);
             setUser(data.data);
-        } catch (error) {
+            return data;
+        } catch (error: any) {
             console.error('Google sign-in error:', error);
+            // Re-throw so the component can handle specific codes like 404
             throw error;
         } finally {
             setIsLoading(false);

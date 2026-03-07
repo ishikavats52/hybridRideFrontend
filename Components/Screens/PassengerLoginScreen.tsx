@@ -137,8 +137,16 @@ const PassengerLoginScreen = ({ route }: any) => {
                             try {
                                 await loginWithGoogle(userType.toLowerCase());
                             } catch (error: any) {
-                                console.error(error);
-                                Alert.alert('Google Login Failed', 'Could not sign in with Google');
+                                console.error('Google login catch block:', error);
+                                // Check if user needs to register
+                                if (error.response?.status === 404 && error.response?.data?.isRegistered === false) {
+                                    navigation.navigate('ProfileSetup' as never, {
+                                        userType,
+                                        googleData: error.response.data.googleData
+                                    } as never);
+                                } else {
+                                    Alert.alert('Google Login Failed', 'Could not sign in with Google or server error');
+                                }
                             }
                         }}
                     >

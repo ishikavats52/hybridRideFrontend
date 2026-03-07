@@ -24,17 +24,17 @@ const { width } = Dimensions.get('window');
 const ProfileSetupScreen = ({ route }: any) => {
     const navigation = useNavigation();
     const { register, isLoading } = useAuth();
-    const { userType, phoneNumber } = route.params || { userType: 'PASSENGER', phoneNumber: '' };
+    const { userType, phoneNumber, googleData } = route.params || { userType: 'PASSENGER', phoneNumber: '', googleData: null };
     const isDriver = userType === 'DRIVER';
 
-    const [fullName, setFullName] = useState('');
-    const [email, setEmail] = useState('');
+    const [fullName, setFullName] = useState(googleData?.name || '');
+    const [email, setEmail] = useState(googleData?.email || '');
     const [password, setPassword] = useState('');
 
     // Store phone in state to allow editing if missing or incorrect
     const [phone, setPhone] = useState(phoneNumber || '');
     const [isEditingPhone, setIsEditingPhone] = useState(!phoneNumber);
-    const [profileImage, setProfileImage] = useState<string | null>(null);
+    const [profileImage, setProfileImage] = useState<string | null>(googleData?.picture || null);
 
     const handleImagePick = async () => {
         const result = await launchImageLibrary({
@@ -59,7 +59,7 @@ const ProfileSetupScreen = ({ route }: any) => {
         if (isDriver) {
             // Pass data to next screen for drivers
             navigation.navigate('DriverVehicleSelection' as never, {
-                userData: { ...route.params?.userData, name: fullName, email, phone: phone, password, role: 'driver', profileImage } // Pass image URI
+                userData: { ...route.params?.userData, name: fullName, email, phone: phone, password, role: 'driver', profileImage, googleIdToken: googleData?.idToken } // Pass image URI & Google token
             } as never);
         } else {
             try {
@@ -69,18 +69,20 @@ const ProfileSetupScreen = ({ route }: any) => {
                     email,
                     phone: phone, // Use phone state
                     password,
-                    role: 'passenger'
+                    role: 'passenger',
+                    googleIdToken: googleData?.idToken, // If coming from Google
+                    profileImage: googleData?.picture === profileImage ? profileImage : undefined // Send if it's the google URL
                 });
 
-                // If there's a profile image, upload it now
-                if (profileImage) {
+                // If there's a new profile image picked from device, upload it now
+                if (profileImage && !profileImage.startsWith('http')) {
                     console.log("Uploading passenger profile image...");
                     const formData = new FormData();
                     formData.append('docType', 'profileImage');
                     formData.append('document', {
                         uri: profileImage,
                         type: 'image/jpeg',
-                        name: 'profile.jpg',     
+                        name: 'profile.jpg',
                     } as any);
 
                     try {
