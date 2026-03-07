@@ -3,8 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Android Emulator: 10.0.2.2
 // Physical Device: Your Machine IP (e.g., 192.168.1.x)
-const BASE_URL = 'http://10.0.2.2:5000/api';
-// const BASE_URL = 'https://hybridride.onrender.com/api';
+// const BASE_URL = 'http://10.0.2.2:5000/api';
+const BASE_URL = 'https://hybridride.onrender.com/api';
 
 const apiClient = axios.create({
     baseURL: BASE_URL,
