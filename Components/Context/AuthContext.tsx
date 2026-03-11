@@ -53,6 +53,7 @@ interface User {
 interface AuthContextType {
     user: User | null;
     isLoading: boolean;
+    isAppLoading: boolean;
     login: (credentials: any) => Promise<void>;
     loginWithGoogle: (role: string) => Promise<void>;
     register: (userData: any) => Promise<void>;
@@ -64,7 +65,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isAppLoading, setIsAppLoading] = useState(true);
 
     // Check for logged-in user on app launch
     useEffect(() => {
@@ -95,7 +97,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             } catch (e) {
                 console.error('Failed to load user', e);
             } finally {
-                setIsLoading(false);
+                setIsAppLoading(false);
             }
         };
 
@@ -161,9 +163,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const logout = async () => {
         setIsLoading(true);
-        await authService.logout();
-        setUser(null);
-        setIsLoading(false);
+        try {
+            await authService.logout();
+
+            // Try to sign out of Google if the user was signed in with Google
+            const isSignedIn = GoogleSignin.hasPreviousSignIn();
+            if (isSignedIn) {
+                await GoogleSignin.revokeAccess();
+                await GoogleSignin.signOut();
+            }
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            setUser(null);
+            setIsLoading(false);
+        }
     };
 
     const refetchUser = async () => {
@@ -180,7 +194,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, isLoading, login, loginWithGoogle, register, logout, refetchUser }}>
+        <AuthContext.Provider value={{ user, isLoading, isAppLoading, login, loginWithGoogle, register, logout, refetchUser }}>
             {children}
         </AuthContext.Provider>
     );

@@ -62,9 +62,9 @@ import SplashScreen from '../Screens/SplashScreen';
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
-    const { user, isLoading } = useAuth();
+    const { user, isAppLoading } = useAuth();
 
-    if (isLoading) {
+    if (isAppLoading) {
         return <SplashScreen />;
     }
 
