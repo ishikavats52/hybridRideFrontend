@@ -6,8 +6,9 @@ import {
     TouchableOpacity,
     ScrollView,
     Dimensions,
-    PermissionsAndroid,
-    Platform
+    Platform,
+    Alert,
+    PermissionsAndroid
 } from 'react-native';
 import BottomNavBar from '../Navigation/BottomNavBar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,14 +28,16 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../Context/AuthContext';
 import { getActiveRide } from '../../Services/rideService';
-import Geolocation from '@react-native-community/geolocation';
+import { GOOGLE_MAPS_API_KEY } from '../../Config/maps';
+import axios from 'axios';
+import GetLocation from 'react-native-get-location';
+import { promptForEnableLocationIfNeeded } from 'react-native-android-location-enabler';
 
 // Polyfill for react-native-google-places-autocomplete
 // @ts-ignore
 navigator.geolocation = require('@react-native-community/geolocation');
 
 import { GooglePlacesAutocomplete, GooglePlacesAutocompleteRef } from 'react-native-google-places-autocomplete';
-import { GOOGLE_MAPS_API_KEY } from '../../Config/maps';
 
 const { width, height } = Dimensions.get('window');
 
@@ -50,55 +53,63 @@ const PassengerHomeScreen = () => {
     const pickupRef = useRef<GooglePlacesAutocompleteRef>(null);
 
     const fetchCurrentLocation = async (isManual = false) => {
-        if (Platform.OS === 'android') {
-            try {
-                const granted = await PermissionsAndroid.request(
+        try {
+            if (Platform.OS === 'android') {
+                const granted = await PermissionsAndroid.requestMultiple([
                     PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-                    {
-                        title: "Location Permission",
-                        message: "HybridRide needs access to your location to find nearby rides and routing.",
-                        buttonNeutral: "Ask Me Later",
-                        buttonNegative: "Cancel",
-                        buttonPositive: "OK"
+                    PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+                ]);
+
+                const isGranted = granted['android.permission.ACCESS_FINE_LOCATION'] === PermissionsAndroid.RESULTS.GRANTED ||
+                    granted['android.permission.ACCESS_COARSE_LOCATION'] === PermissionsAndroid.RESULTS.GRANTED;
+
+                if (!isGranted) {
+                    if (isManual) {
+                        Alert.alert("Permission Error", "Please allow location access in settings.");
                     }
-                );
-                if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-                    console.log('Location permission denied');
                     return;
                 }
-            } catch (err) {
-                console.warn(err);
-                return;
+
+                try {
+                    await promptForEnableLocationIfNeeded({
+                        interval: 10000,
+                    });
+                } catch (err) {
+                    console.log("GPS Enable Prompt Error/Cancel:", err);
+                }
+            }
+
+            const location = await GetLocation.getCurrentPosition({
+                enableHighAccuracy: true,
+                timeout: 30000,
+            });
+
+            const { latitude, longitude } = location;
+            setPickupCoords([longitude, latitude]);
+
+            // Fetch Address using axios like in the provided example
+            const res = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json`, {
+                params: {
+                    latlng: `${latitude},${longitude}`,
+                    key: GOOGLE_MAPS_API_KEY
+                }
+            });
+
+            if (res.data && res.data.results && res.data.results.length > 0) {
+                const address = res.data.results[0].formatted_address;
+                setPickupAddress(address);
+                if (pickupRef.current) {
+                    pickupRef.current.setAddressText(address);
+                }
+            } else {
+                setPickupAddress('Current Location');
+            }
+        } catch (error: any) {
+            console.log("Location Fetch Error:", error.code, error.message);
+            if (isManual) {
+                Alert.alert("Location Issue", error.message || "Could not fetch location.");
             }
         }
-
-        Geolocation.getCurrentPosition(
-            (position) => {
-                const { latitude, longitude } = position.coords;
-                setPickupCoords([longitude, latitude]);
-
-                // Reverse Geocoding to get address string
-                fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        const address = (data.results && data.results.length > 0)
-                            ? data.results[0].formatted_address
-                            : 'Current Location';
-                        setPickupAddress(address);
-                        if (isManual && pickupRef.current) {
-                            pickupRef.current.setAddressText(address);
-                        }
-                    })
-                    .catch(() => {
-                        setPickupAddress('Current Location');
-                        if (isManual && pickupRef.current) {
-                            pickupRef.current.setAddressText('Current Location');
-                        }
-                    });
-            },
-            (error) => console.log('Geolocation error:', error),
-            { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
-        );
     };
 
     // Auto-fetch location on mount

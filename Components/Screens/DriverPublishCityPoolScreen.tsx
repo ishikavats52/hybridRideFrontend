@@ -8,20 +8,25 @@ import {
     TextInput,
     ScrollView,
     Switch,
+    Platform,
+    PermissionsAndroid
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faChevronLeft, faChair, faSuitcase, faUserFriends, faCalendarDays } from '@fortawesome/free-solid-svg-icons';
+import { faChevronLeft, faChair, faSuitcase, faUserFriends, faCalendarDays, faLocationDot } from '@fortawesome/free-solid-svg-icons';
 import CalendarModal from '../Common/CalendarModal';
 import TimePickerModal from '../Common/TimePickerModal';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { GOOGLE_MAPS_API_KEY } from '../../Config/maps';
 import { useAuth } from '../Context/AuthContext';
-import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import poolService from '../../Services/poolService';
+import GetLocation from 'react-native-get-location';
+import { promptForEnableLocationIfNeeded } from 'react-native-android-location-enabler';
+import axios from 'axios';
+
 
 const DriverPublishCityPoolScreen = () => {
     const navigation = useNavigation();
@@ -35,6 +40,7 @@ const DriverPublishCityPoolScreen = () => {
     // Route State
     const [origin, setOrigin] = useState('');
     const [destination, setDestination] = useState('');
+    const originRef = React.useRef<any>(null);
 
     // Toggle
     const [isWomenOnly, setIsWomenOnly] = useState(false);
@@ -60,6 +66,55 @@ const DriverPublishCityPoolScreen = () => {
         if (value > 0) setter(value - 1);
     };
 
+    const fetchCurrentLocation = async () => {
+        try {
+            if (Platform.OS === 'android') {
+                const granted = await PermissionsAndroid.requestMultiple([
+                    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+                    PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+                ]);
+
+                if (
+                    granted['android.permission.ACCESS_FINE_LOCATION'] !== PermissionsAndroid.RESULTS.GRANTED ||
+                    granted['android.permission.ACCESS_COARSE_LOCATION'] !== PermissionsAndroid.RESULTS.GRANTED
+                ) {
+                    Alert.alert("Permission Denied", "Please grant location permissions to use this feature.");
+                    return;
+                }
+
+                try {
+                    await promptForEnableLocationIfNeeded({
+                        interval: 10000,
+                    });
+                } catch (err) {
+                    console.log("GPS Enable Prompt Error/Cancel:", err);
+                }
+            }
+
+            const location = await GetLocation.getCurrentPosition({
+                enableHighAccuracy: true,
+                timeout: 30000,
+            });
+
+            const { latitude, longitude } = location;
+
+            const response = await axios.get(
+                `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`
+            );
+
+            if (response.data.status === 'OK') {
+                const address = response.data.results[0].formatted_address;
+                setOrigin(address);
+                originRef.current?.setAddressText(address);
+            } else {
+                console.error("Geocoding failed:", response.data.status);
+            }
+        } catch (error: any) {
+            console.error("Location Fetch Error:", error);
+            Alert.alert("Error", "Could not determine location. Please check your GPS settings.");
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
@@ -82,27 +137,37 @@ const DriverPublishCityPoolScreen = () => {
                         <View style={[styles.routeInputs, { zIndex: 1000, overflow: 'visible' }]}>
                             <View style={[styles.inputWrapper, { zIndex: 2000, elevation: 20, overflow: 'visible' }]}>
                                 <Text style={styles.inputLabel}>FROM</Text>
-                                <GooglePlacesAutocomplete
-                                    placeholder="Select Origin"
-                                    fetchDetails={true}
-                                    onPress={(data, details = null) => {
-                                        setOrigin(data.description);
-                                        // Optional: Use details?.geometry?.location (lat, lng) if map rendering is required
-                                    }}
-                                    query={{ key: GOOGLE_MAPS_API_KEY, language: 'en' }}
-                                    enablePoweredByContainer={false}
-                                    minLength={2}
-                                    debounce={400}
-                                    keyboardShouldPersistTaps="handled"
-                                    textInputProps={{
-                                        placeholderTextColor: '#94A3B8',
-                                    }}
-                                    styles={{
-                                        container: { flex: 0, overflow: 'visible' },
-                                        textInput: styles.textInput,
-                                        listView: { position: 'absolute', top: 58, left: 0, right: 0, zIndex: 9999, elevation: 99, backgroundColor: '#FFF', borderRadius: 8, shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 } }
-                                    }}
-                                />
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <View style={{ flex: 1 }}>
+                                        <GooglePlacesAutocomplete
+                                            ref={originRef}
+                                            placeholder="Select Origin"
+                                            fetchDetails={true}
+                                            onPress={(data, details = null) => {
+                                                setOrigin(data.description);
+                                            }}
+                                            query={{ key: GOOGLE_MAPS_API_KEY, language: 'en' }}
+                                            enablePoweredByContainer={false}
+                                            minLength={2}
+                                            debounce={400}
+                                            keyboardShouldPersistTaps="handled"
+                                            textInputProps={{
+                                                placeholderTextColor: '#94A3B8',
+                                            }}
+                                            styles={{
+                                                container: { flex: 0, overflow: 'visible' },
+                                                textInput: [styles.textInput, { borderTopRightRadius: 0, borderBottomRightRadius: 0, borderRightWidth: 0 }],
+                                                listView: { position: 'absolute', top: 58, left: 0, right: 0, zIndex: 9999, elevation: 99, backgroundColor: '#FFF', borderRadius: 8, shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 } }
+                                            }}
+                                        />
+                                    </View>
+                                    <TouchableOpacity
+                                        style={[styles.textInput, { borderTopLeftRadius: 0, borderBottomLeftRadius: 0, paddingHorizontal: 16, borderLeftWidth: 1, borderColor: '#E5E7EB', borderStyle: 'solid', justifyContent: 'center' }]}
+                                        onPress={fetchCurrentLocation}
+                                    >
+                                        <FontAwesomeIcon icon={faLocationDot} size={18} color="#2DD4BF" />
+                                    </TouchableOpacity>
+                                </View>
                             </View>
                             <View style={[styles.inputWrapper, { zIndex: 1000, elevation: 10, overflow: 'visible' }]}>
                                 <Text style={styles.inputLabel}>TO</Text>

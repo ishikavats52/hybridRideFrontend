@@ -36,7 +36,7 @@ import { createRazorpayOrder, verifyRazorpayPayment } from '../../Services/payme
 const WalletScreen = () => {
     const navigation = useNavigation();
     const route = useRoute<any>();
-    const { user } = useAuth();
+    const { user, refetchUser } = useAuth();
     const isDriver = route.params?.mode === 'driver' || user?.role === 'driver';
 
     const [balance, setBalance] = React.useState('0.00');
@@ -70,7 +70,7 @@ const WalletScreen = () => {
             };
             fetchBalance();
         } else {
-            setBalance('45.50'); // Mock passenger balance
+            setBalance(parseFloat(user?.walletBalance || 0).toFixed(2));
         }
 
         const fetchHistory = async () => {
@@ -94,7 +94,7 @@ const WalletScreen = () => {
             }
         };
         fetchHistory();
-    }, [isDriver]);
+    }, [isDriver, user?.walletBalance]);
 
     const handleAddMoney = async () => {
         try {
@@ -128,7 +128,7 @@ const WalletScreen = () => {
                     amount
                 );
                 if (verifyRes.success) {
-                    setBalance(parseFloat(verifyRes.walletBalance || (+balance + amount)).toFixed(2));
+                    await refetchUser();
                     Alert.alert('Success', '₹500 added to wallet successfully!');
                 }
             }).catch((error: any) => {
@@ -208,18 +208,7 @@ const WalletScreen = () => {
                             </TouchableOpacity>
                         </View>
 
-                        <View style={styles.offerCard}>
-                            <View style={[styles.offerIconContainer, { backgroundColor: '#FEF3C7' }]}>
-                                <FontAwesomeIcon icon={faMountainSun} size={20} color="#B45309" />
-                            </View>
-                            <Text style={styles.offerType}>INTER-CITY</Text>
-                            <Text style={styles.offerTitle}>Shared-Ride Savings</Text>
-                            <Text style={[styles.offerDesc, { height: 'auto' }]}>Planning a long weekend? Book shared rides and save up to ₹45.</Text>
-                            <TouchableOpacity style={styles.learnMoreRow}>
-                                <Text style={[styles.learnMoreText, { color: '#9333EA' }]}>CHECK AVAILABILITY</Text>
-                                <FontAwesomeIcon icon={faArrowRight} size={10} color="#9333EA" />
-                            </TouchableOpacity>
-                        </View>
+                        
                     </ScrollView>
 
                     {/* Ride Savings */}

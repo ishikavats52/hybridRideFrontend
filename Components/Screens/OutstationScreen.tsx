@@ -8,9 +8,14 @@ import {
     Dimensions,
     Modal,
     ScrollView,
-    Alert,
-    Image
+    Image,
+    PermissionsAndroid,
+    Platform,
+    Alert
 } from 'react-native';
+import axios from 'axios';
+import GetLocation from 'react-native-get-location';
+import { promptForEnableLocationIfNeeded } from 'react-native-android-location-enabler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import {
@@ -53,6 +58,56 @@ const OutstationScreen = () => {
 
     const decrementSeats = () => {
         if (seats > 1) setSeats(seats - 1);
+    };
+
+    const fetchCurrentLocation = async () => {
+        try {
+            if (Platform.OS === 'android') {
+                const granted = await PermissionsAndroid.requestMultiple([
+                    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+                    PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+                ]);
+
+                if (
+                    granted['android.permission.ACCESS_FINE_LOCATION'] !== PermissionsAndroid.RESULTS.GRANTED ||
+                    granted['android.permission.ACCESS_COARSE_LOCATION'] !== PermissionsAndroid.RESULTS.GRANTED
+                ) {
+                    Alert.alert("Permission Denied", "Please grant location permissions to use this feature.");
+                    return;
+                }
+
+                try {
+                    await promptForEnableLocationIfNeeded({
+                        interval: 10000,
+                    });
+                } catch (err) {
+                    console.log("GPS Enable Prompt Error/Cancel:", err);
+                }
+            }
+
+            const location = await GetLocation.getCurrentPosition({
+                enableHighAccuracy: true,
+                timeout: 30000,
+            });
+
+            const { latitude, longitude } = location;
+            setFromCoords(`${longitude},${latitude}`);
+
+            const response = await axios.get(
+                `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`
+            );
+
+            if (response.data.status === 'OK') {
+                const address = response.data.results[0].formatted_address;
+                setFromLocation(address);
+                fromRef.current?.setAddressText(address);
+            } else {
+                console.error("Geocoding failed:", response.data.status);
+            }
+        } catch (error: any) {
+            console.error("Location Fetch Error:", error);
+            Alert.alert("Error", "Could not determine location. Please check your GPS settings.");
+        }
     };
 
     const isFormValid = fromLocation.trim() !== '' && toLocation.trim() !== '' && date !== '';
@@ -166,6 +221,11 @@ const OutstationScreen = () => {
                                                 textInput: [styles.input, { paddingVertical: 0, height: 40 }],
                                                 listView: { position: 'absolute', top: 45, left: 0, right: 0, zIndex: 1000, backgroundColor: '#FFF', elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, borderRadius: 12 }
                                             }}
+                                            renderRightButton={() => (
+                                                <TouchableOpacity onPress={fetchCurrentLocation} style={{ justifyContent: 'center', paddingRight: 10 }}>
+                                                    <FontAwesomeIcon icon={faLocationDot} size={18} color="#10B981" />
+                                                </TouchableOpacity>
+                                            )}
                                         />
                                     </View>
                                 </View>

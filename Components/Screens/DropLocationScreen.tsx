@@ -75,6 +75,8 @@ const DropLocationScreen = () => {
                         components: 'country:in'
                     }}
                     fetchDetails={true}
+                    minLength={2}
+                    debounce={400}
                     onFail={(error) => console.error('Autocomplete Error:', error)}
                     keyboardShouldPersistTaps="handled"
                     listUnderlayColor="transparent"
