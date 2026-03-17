@@ -23,7 +23,7 @@ const { width } = Dimensions.get('window');
 
 const ProfileSetupScreen = ({ route }: any) => {
     const navigation = useNavigation();
-    const { register, isLoading } = useAuth();
+    const { register, refetchUser, isLoading } = useAuth();
     const { userType, phoneNumber, googleData } = route.params || { userType: 'PASSENGER', phoneNumber: '', googleData: null };
     const isDriver = userType === 'DRIVER';
 
@@ -35,8 +35,49 @@ const ProfileSetupScreen = ({ route }: any) => {
     const [phone, setPhone] = useState(phoneNumber || '');
     const [isEditingPhone, setIsEditingPhone] = useState(!phoneNumber);
     const [profileImage, setProfileImage] = useState<string | null>(googleData?.picture || null);
+    const [errors, setErrors] = useState({});
 
-    const handleImagePick = async () => {
+    const validateForm = () => {
+        const newErrors: any = {};
+        const trimmedName = fullName.trim();
+        const trimmedEmail = email.trim();
+        const trimmedPassword = password.trim();
+        const trimmedPhone = phone.trim();
+
+        if (!trimmedName) {
+            newErrors.fullName = 'Full name is required';
+        } else if (!/^[a-zA-Z\s]+$/.test(trimmedName)) {
+            newErrors.fullName = 'Full name can only contain letters and spaces';
+        }
+
+        if (!trimmedEmail) {
+            newErrors.email = 'Email is required';
+        } else {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(trimmedEmail)) {
+                newErrors.email = 'Please enter a valid email address';
+            }
+        }
+
+        if (!trimmedPhone) {
+            newErrors.phone = 'Phone number is required';
+        } else if (!/^\d{10}$/.test(trimmedPhone)) {
+            newErrors.phone = 'Please enter a valid 10-digit phone number';
+        }
+
+        if (!trimmedPassword) {
+            newErrors.password = 'Password is required';
+        } else if (trimmedPassword.length < 8) {
+            newErrors.password = 'Password must be at least 8 characters long';
+        } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(trimmedPassword)) {
+            newErrors.password = 'Password must contain at least one uppercase letter, one lowercase letter, and one number';
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handlePickProfileImage = async () => {
         const result = await launchImageLibrary({
             mediaType: 'photo',
             quality: 0.8,
@@ -51,24 +92,26 @@ const ProfileSetupScreen = ({ route }: any) => {
     };
 
     const handleSave = async () => {
-        if (!fullName || !email || !password || !phone) {
-            Alert.alert('Missing Fields', 'Please enter all required fields including email and phone number');
-            return;
-        }
+        if (!validateForm()) return;
+
+        const trimmedName = fullName.trim();
+        const trimmedEmail = email.trim();
+        const trimmedPassword = password.trim();
+        const trimmedPhone = phone.trim();
 
         if (isDriver) {
             // Pass data to next screen for drivers
             navigation.navigate('DriverVehicleSelection' as never, {
-                userData: { ...route.params?.userData, name: fullName, email, phone: phone, password, role: 'driver', profileImage, googleIdToken: googleData?.idToken } // Pass image URI & Google token
+                userData: { ...route.params?.userData, name: trimmedName, email: trimmedEmail, phone: trimmedPhone, password: trimmedPassword, role: 'driver', profileImage, googleIdToken: googleData?.idToken } // Pass image URI & Google token
             } as never);
         } else {
             try {
                 // Register immediately for passengers
                 await register({
-                    name: fullName,
-                    email,
-                    phone: phone, // Use phone state
-                    password,
+                    name: trimmedName,
+                    email: trimmedEmail,
+                    phone: trimmedPhone, // Use phone state
+                    password: trimmedPassword,
                     role: 'passenger',
                     googleIdToken: googleData?.idToken, // If coming from Google
                     profileImage: googleData?.picture === profileImage ? profileImage : undefined // Send if it's the google URL
@@ -88,6 +131,8 @@ const ProfileSetupScreen = ({ route }: any) => {
                     try {
                         await driverService.uploadDocument(formData);
                         console.log("Profile image uploaded successfully");
+                        // Refresh user data to get the updated profileImage from backend
+                        await refetchUser();
                     } catch (err: any) {
                         console.error("Failed to upload profile image:", err);
                     }
@@ -118,7 +163,7 @@ const ProfileSetupScreen = ({ route }: any) => {
 
                 {/* Profile Image Placeholer */}
                 <View style={styles.profileImageContainer}>
-                    <TouchableOpacity style={styles.profileImageCircle} onPress={handleImagePick}>
+                    <TouchableOpacity style={styles.profileImageCircle} onPress={handlePickProfileImage}>
                         {profileImage ? (
                             <Image source={{ uri: profileImage }} style={styles.profileImage} />
                         ) : (
@@ -152,6 +197,8 @@ const ProfileSetupScreen = ({ route }: any) => {
                         </View>
                     )}
 
+                    {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
+
                     <Text style={styles.helperText}>Used for ride updates and security.</Text>
 
                     <Text style={styles.label}>FULL NAME</Text>
@@ -161,6 +208,8 @@ const ProfileSetupScreen = ({ route }: any) => {
                         onChangeText={setFullName}
                         placeholder="Ex. John Doe"
                     />
+
+                    {errors.fullName && <Text style={styles.errorText}>{errors.fullName}</Text>}
 
                     <Text style={styles.label}>EMAIL ADDRESS</Text>
                     <TextInput
@@ -172,6 +221,8 @@ const ProfileSetupScreen = ({ route }: any) => {
                         autoCapitalize="none"
                     />
 
+                    {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+
 
 
                     <Text style={styles.label}>PASSWORD</Text>
@@ -182,6 +233,8 @@ const ProfileSetupScreen = ({ route }: any) => {
                         placeholder="Create a password"
                         secureTextEntry
                     />
+
+                    {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
                 </View>
 
                 {/* Saved Addresses */}
@@ -366,8 +419,11 @@ const styles = StyleSheet.create({
         fontWeight: '500',
         color: '#111827',
         marginBottom: 10,
-    },
-    sectionTitle: {
+    },    errorText: {
+        color: 'red',
+        fontSize: 12,
+        marginBottom: 10,
+    },    sectionTitle: {
         fontSize: 12,
         fontWeight: '800',
         color: '#9CA3AF',

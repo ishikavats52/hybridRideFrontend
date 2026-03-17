@@ -24,19 +24,63 @@ const PassengerLoginScreen = ({ route }: any) => {
     const [activeTab, setActiveTab] = useState('MOBILE');
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
+    const [errors, setErrors] = useState({});
 
-    // Simple validation (can be email or 10-digit phone)
-    const isValidIdentifier = identifier.length >= 5;
+    // Validation function
+    const validateForm = () => {
+        const newErrors: any = {};
+        const trimmedIdentifier = identifier.trim();
+        const trimmedPassword = password.trim();
+
+        if (!trimmedIdentifier) {
+            newErrors.identifier = 'Email or phone number is required';
+        } else {
+            const isEmail = trimmedIdentifier.includes('@');
+            if (isEmail) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(trimmedIdentifier)) {
+                    newErrors.identifier = 'Please enter a valid email address';
+                }
+            } else {
+                if (!/^\d{10}$/.test(trimmedIdentifier)) {
+                    newErrors.identifier = 'Please enter a valid 10-digit phone number';
+                }
+            }
+        }
+
+        if (!trimmedPassword) {
+            newErrors.password = 'Password is required';
+        } else if (trimmedPassword.length < 6) {
+            newErrors.password = 'Password must be at least 6 characters long';
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    // Check if form is valid for button enable
+    const isFormValid = () => {
+        const id = identifier.trim();
+        const pwd = password.trim();
+        if (!id || !pwd || pwd.length < 6) return false;
+        if (id.includes('@')) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(id);
+        } else {
+            return /^\d{10}$/.test(id);
+        }
+    };
 
     const handleLogin = async () => {
+        if (!validateForm()) return;
+
         try {
-            const isEmail = identifier.includes('@');
+            const isEmail = identifier.trim().includes('@');
 
             await login({
-                ...(isEmail ? { email: identifier } : { phone: identifier }),
-                password: password,
+                ...(isEmail ? { email: identifier.trim() } : { phone: identifier.trim() }),
+                password: password.trim(),
             });
-
 
             // Navigation is handled automatically by AppNavigator based on user state
         } catch (error: any) {
@@ -89,6 +133,7 @@ const PassengerLoginScreen = ({ route }: any) => {
                             onChangeText={setIdentifier}
                             autoCapitalize="none"
                         />
+                        {errors.identifier && <Text style={styles.errorText}>{errors.identifier}</Text>}
                     </View>
                     <View style={styles.inputRow}>
                         <TextInput
@@ -99,16 +144,17 @@ const PassengerLoginScreen = ({ route }: any) => {
                             value={password}
                             onChangeText={setPassword}
                         />
+                        {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
                     </View>
                 </View>
 
                 {/* Continue Button */}
                 <TouchableOpacity
-                    style={[styles.continueButton, (isValidIdentifier && password.length > 5) && styles.continueButtonActive]}
-                    disabled={!isValidIdentifier || password.length < 6 || isLoading}
+                    style={[styles.continueButton, isFormValid() && styles.continueButtonActive]}
+                    disabled={!isFormValid() || isLoading}
                     onPress={handleLogin}
                 >
-                    <Text style={[styles.continueButtonText, (isValidIdentifier && password.length > 5) && styles.continueButtonTextActive]}>
+                    <Text style={[styles.continueButtonText, isFormValid() && styles.continueButtonTextActive]}>
                         {isLoading ? 'Logging in...' : 'Login'}
                     </Text>
                 </TouchableOpacity>
@@ -292,6 +338,12 @@ const styles = StyleSheet.create({
         fontSize: 18,
         color: '#111827',
         fontWeight: '600',
+    },
+    errorText: {
+        color: 'red',
+        fontSize: 12,
+        marginTop: 5,
+        marginLeft: 10,
     },
     continueButton: {
         backgroundColor: '#E5E7EB', // Disabled looking state
