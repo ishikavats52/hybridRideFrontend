@@ -474,6 +474,8 @@ const styles = StyleSheet.create({
         overflow: 'visible',
     },
     inputWithIcon: {
+
+
         flexDirection: 'row',
         alignItems: 'center',
         overflow: 'visible',

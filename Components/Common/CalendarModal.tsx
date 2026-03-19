@@ -16,9 +16,10 @@ interface CalendarModalProps {
     onClose: () => void;
     onSelectDate: (date: string) => void;
     selectedDate: string;
+    disablePastDates?: boolean;
 }
 
-const CalendarModal = ({ visible, onClose, onSelectDate, selectedDate }: CalendarModalProps) => {
+const CalendarModal = ({ visible, onClose, onSelectDate, selectedDate, disablePastDates = false }: CalendarModalProps) => {
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -63,15 +64,32 @@ const CalendarModal = ({ visible, onClose, onSelectDate, selectedDate }: Calenda
         const isSelectedMonth = selectedParts[1] === currentMonthShort && parseInt(selectedParts[2]) === year;
         const selectedDayNum = isSelectedMonth ? parseInt(selectedParts[0]) : -1;
 
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         for (let i = 1; i <= daysInMonth; i++) {
             const isSelected = i === selectedDayNum;
+            const cellDate = new Date(year, month, i);
+            const isPast = disablePastDates && cellDate < today;
+
             days.push(
                 <TouchableOpacity
                     key={i}
-                    style={[styles.dayCell, isSelected && styles.selectedDayCell]}
-                    onPress={() => handleDateSelect(i)}
+                    style={[
+                        styles.dayCell,
+                        isSelected && styles.selectedDayCell,
+                        isPast && styles.disabledDayCell
+                    ]}
+                    onPress={() => !isPast && handleDateSelect(i)}
+                    disabled={isPast}
                 >
-                    <Text style={[styles.dayText, isSelected && styles.selectedDayText]}>{i}</Text>
+                    <Text style={[
+                        styles.dayText,
+                        isSelected && styles.selectedDayText,
+                        isPast && styles.disabledDayText
+                    ]}>
+                        {i}
+                    </Text>
                 </TouchableOpacity>
             );
         }
@@ -200,6 +218,12 @@ const styles = StyleSheet.create({
     selectedDayText: {
         color: '#FFFFFF',
         fontWeight: '800',
+    },
+    disabledDayCell: {
+        opacity: 0.3,
+    },
+    disabledDayText: {
+        color: '#9CA3AF',
     },
     modalFooter: {
         flexDirection: 'row',

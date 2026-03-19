@@ -52,12 +52,13 @@ const RideTrackingScreen = () => {
                     if (ride.status === 'completed') {
                         clearInterval(pollInterval);
                         navigation.navigate('RideCompleted' as never, {
+                            bookingId: ride._id,
                             driver: {
                                 name: ride.driver?.name || "Driver",
                                 initial: (ride.driver?.name?.[0] || "D").toUpperCase(),
                             },
                             price: ride.finalFare || ride.offeredFare || "0.00",
-                            bookingId: ride._id
+                            paymentMethod: ride.paymentMethod
                         } as never);
                     } else if (ride.status === 'cancelled') {
                         clearInterval(pollInterval);
@@ -154,7 +155,7 @@ const RideTrackingScreen = () => {
                             <Text style={styles.licenseLarge}>882</Text>
                         </View>
                         <View style={styles.demoBadge}>
-                            <Text style={styles.demoText}>END (DEMO)</Text>
+                            {/* <Text style={styles.demoText}>END (DEMO)</Text> */}
                         </View>
                     </View>
 

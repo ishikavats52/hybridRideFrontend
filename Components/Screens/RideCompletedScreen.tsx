@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faCheck, faStar, faLock, faCreditCard, faMoneyBill, faCircleCheck, faCircle } from '@fortawesome/free-solid-svg-icons';
-import { rateRide } from '../../Services/rideService';
+import { rateRide, updateRideStatus } from '../../Services/rideService';
 import RazorpayCheckout from 'react-native-razorpay';
 
 const { width } = Dimensions.get('window');
@@ -59,6 +59,11 @@ const RideCompletedScreen = () => {
                 Alert.alert("Success", `Payment Completed: ${data.razorpay_payment_id}`);
             } else {
                 Alert.alert("Success", "Cash payment confirmed with driver.");
+            }
+
+            // Mark booking as fully settled in backend
+            if (bookingId) {
+                await updateRideStatus(bookingId, 'completed');
             }
 
             // Navigate away on success

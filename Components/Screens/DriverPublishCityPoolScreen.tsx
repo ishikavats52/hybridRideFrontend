@@ -405,6 +405,7 @@ const DriverPublishCityPoolScreen = () => {
                 onClose={() => setShowCalendar(false)}
                 onSelectDate={setSelectedDate}
                 selectedDate={selectedDate === 'dd-mm-yyyy' ? '04-Feb-2026' : selectedDate}
+                disablePastDates={true}
             />
             <TimePickerModal
                 visible={showTimePicker}
