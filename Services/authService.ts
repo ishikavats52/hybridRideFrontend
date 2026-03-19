@@ -20,6 +20,19 @@ export const authService = {
         return response.data;
     },
 
+    whatsappLogin: async (phone: string) => {
+        const response = await apiClient.post('/auth/whatsapp-login', { phone });
+        return response.data;
+    },
+    verifyOTP: async (phone: string, otp: string) => {
+        const response = await apiClient.post('/auth/verify-otp', { phone, otp });
+        if (response.data.data.token) {
+            await AsyncStorage.setItem('userToken', response.data.data.token);
+            await AsyncStorage.setItem('userInfo', JSON.stringify(response.data.data));
+        }
+        return response.data;
+    },
+
     loginWithGoogle: async (idToken: string, role: string) => {
         const response = await apiClient.post('/auth/google', { idToken, role });
         if (response.data.data.token) {

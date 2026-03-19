@@ -13,11 +13,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faPen } from '@fortawesome/free-solid-svg-icons';
+import { useAuth } from '../Context/AuthContext';
 
 const OtpVerificationScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
-    const { phoneNumber = '+1 7078813158', userType = 'PASSENGER' } = route.params as any || {};
+    const { verifyOTP, isLoading } = useAuth();
+    const { phoneNumber = '+1 7078813158', userType = 'PASSENGER', isLogin = true } = route.params as any || {};
 
     // 6 digit OTP
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -40,12 +42,17 @@ const OtpVerificationScreen = () => {
         }
     };
 
-    const handleVerify = () => {
+    const handleVerify = async () => {
         const otpString = otp.join('');
         if (otpString.length === 6) {
-            // Mock verification
-            // In real app, call verify API here
-            navigation.navigate('ProfileSetup' as never, { userType } as never);
+            try {
+                await verifyOTP(phoneNumber, otpString);
+                // Success! Navigation is handled by AppNavigator as 'user' is now set in AuthContext
+                Alert.alert("Success", "Logged in successfully");
+            } catch (error: any) {
+                console.error(error);
+                Alert.alert("Verification Failed", error.response?.data?.message || "Invalid OTP. Please try again.");
+            }
         } else {
             Alert.alert("Invalid OTP", "Please enter a 6-digit code.");
         }
@@ -76,7 +83,7 @@ const OtpVerificationScreen = () => {
                     {otp.map((digit, index) => (
                         <TextInput
                             key={index}
-                            ref={ref => inputs.current[index] = ref}
+                            ref={ref => { (inputs.current as any)[index] = ref; }}
                             style={[styles.otpInput, digit ? styles.otpInputFilled : null]}
                             keyboardType="number-pad"
                             maxLength={1}
@@ -95,8 +102,12 @@ const OtpVerificationScreen = () => {
             </View>
 
             <View style={styles.footer}>
-                <TouchableOpacity style={styles.verifyButton} onPress={handleVerify}>
-                    <Text style={styles.verifyButtonText}>Verify</Text>
+                <TouchableOpacity 
+                    style={[styles.verifyButton, isLoading && { opacity: 0.7 }]} 
+                    onPress={handleVerify}
+                    disabled={isLoading}
+                >
+                    <Text style={styles.verifyButtonText}>{isLoading ? 'Verifying...' : 'Verify'}</Text>
                 </TouchableOpacity>
             </View>
         </SafeAreaView>

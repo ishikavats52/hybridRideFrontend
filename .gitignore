@@ -76,3 +76,7 @@ yarn-error.log
 
 # Secrets
 Config/secrets.ts
+.env
+.env.local
+*.keystore
+!debug.keystore

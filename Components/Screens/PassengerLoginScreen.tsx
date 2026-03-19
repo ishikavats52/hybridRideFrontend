@@ -17,14 +17,14 @@ import { useAuth } from '../Context/AuthContext';
 
 const PassengerLoginScreen = ({ route }: any) => {
     const navigation = useNavigation();
-    const { login, loginWithGoogle, isLoading } = useAuth();
+    const { login, loginWithGoogle, whatsappLogin, isLoading } = useAuth();
     const { userType } = route.params || { userType: 'PASSENGER' };
     const isDriver = userType === 'DRIVER';
 
     const [activeTab, setActiveTab] = useState('MOBILE');
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
-    const [errors, setErrors] = useState({});
+    const [errors, setErrors] = useState<any>({});
 
     // Validation function
     const validateForm = () => {
@@ -77,12 +77,18 @@ const PassengerLoginScreen = ({ route }: any) => {
         try {
             const isEmail = identifier.trim().includes('@');
 
-            await login({
+            const response = await login({
                 ...(isEmail ? { email: identifier.trim() } : { phone: identifier.trim() }),
                 password: password.trim(),
             });
 
-            // Navigation is handled automatically by AppNavigator based on user state
+            if (response?.data?.otpRequired) {
+                (navigation as any).navigate('OtpVerification', {
+                    phoneNumber: response.data.phone || identifier.trim(),
+                    userType: userType
+                });
+            }
+            // If token was returned, AuthContext sets user and AppNavigator redirects
         } catch (error: any) {
             console.error(error);
             Alert.alert('Login Failed', error.response?.data?.message || 'Please check your credentials');
@@ -169,10 +175,23 @@ const PassengerLoginScreen = ({ route }: any) => {
                 {/* Social Buttons */}
                 <TouchableOpacity
                     style={styles.socialButton}
-                    onPress={() => navigation.navigate('ProfileSetup' as never, { userType } as never)}
+                    disabled={isLoading}
+                    onPress={async () => {
+                        if (!identifier || identifier.length < 10) {
+                            Alert.alert('Phone Required', 'Please enter your mobile number first.');
+                            return;
+                        }
+                        try {
+                            await whatsappLogin(identifier);
+                            (navigation as any).navigate('OtpVerification', { phoneNumber: identifier });
+                        } catch (error: any) {
+                            console.error(error);
+                            Alert.alert('Login Failed', error.response?.data?.message || 'Check your internet or if the number is registered');
+                        }
+                    }}
                 >
                     <FontAwesomeIcon icon={faWhatsapp} size={24} color="#25D366" style={{ marginRight: 10 }} />
-                    <Text style={styles.socialButtonText}>WhatsApp</Text>
+                    <Text style={styles.socialButtonText}>Login with WhatsApp</Text>
                 </TouchableOpacity>
 
                 {!isDriver && (
@@ -186,10 +205,10 @@ const PassengerLoginScreen = ({ route }: any) => {
                                 console.error('Google login catch block:', error);
                                 // Check if user needs to register
                                 if (error.response?.status === 404 && error.response?.data?.isRegistered === false) {
-                                    navigation.navigate('ProfileSetup' as never, {
+                                    (navigation as any).navigate('ProfileSetup', {
                                         userType,
                                         googleData: error.response.data.googleData
-                                    } as never);
+                                    });
                                 } else {
                                     Alert.alert('Google Login Failed', 'Could not sign in with Google or server error');
                                 }
@@ -207,7 +226,7 @@ const PassengerLoginScreen = ({ route }: any) => {
                         Don't have an account?{' '}
                         <Text
                             style={styles.signupText}
-                            onPress={() => navigation.navigate('ProfileSetup' as never, { userType, phoneNumber: identifier } as never)}
+                            onPress={() => (navigation as any).navigate('ProfileSetup', { userType, phoneNumber: identifier })}
                         >
                             Sign Up
                         </Text>

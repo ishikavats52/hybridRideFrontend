@@ -54,9 +54,11 @@ interface AuthContextType {
     user: User | null;
     isLoading: boolean;
     isAppLoading: boolean;
-    login: (credentials: any) => Promise<void>;
+    login: (credentials: any) => Promise<any>;
     loginWithGoogle: (role: string) => Promise<void>;
-    register: (userData: any) => Promise<void>;
+    register: (userData: any) => Promise<any>;
+    verifyOTP: (phone: string, otp: string) => Promise<void>;
+    whatsappLogin: (phone: string) => Promise<void>;
     logout: () => Promise<void>;
     refetchUser: () => Promise<void>;
 }
@@ -108,7 +110,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsLoading(true);
         try {
             const data = await authService.login(credentials);
-            setUser(data.data);
+            if (data.data.token) {
+                setUser(data.data);
+            }
+            return data;
+        } catch (error) {
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const whatsappLogin = async (phone: string) => {
+        setIsLoading(true);
+        try {
+            const response = await authService.whatsappLogin(phone);
+            if (response.data?.otpRequired) {
+                // Return or set some state if needed, but the Screen will handle navigation
+            }
+        } catch (error: any) {
+            console.error(error);
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const verifyOTP = async (phone: string, otp: string) => {
+        setIsLoading(true);
+        try {
+            const data = await authService.verifyOTP(phone, otp);
+            if (data.data.token) {
+                setUser(data.data);
+            }
         } catch (error) {
             throw error;
         } finally {
@@ -153,7 +187,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsLoading(true);
         try {
             const data = await authService.register(userData);
-            setUser(data.data);
+            // Don't set user here, force manual login as per requirement
+            return data;
         } catch (error) {
             throw error;
         } finally {
@@ -194,7 +229,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, isLoading, isAppLoading, login, loginWithGoogle, register, logout, refetchUser }}>
+        <AuthContext.Provider value={{ user, isLoading, isAppLoading, login, loginWithGoogle, whatsappLogin, register, verifyOTP, logout, refetchUser }}>
             {children}
         </AuthContext.Provider>
     );
