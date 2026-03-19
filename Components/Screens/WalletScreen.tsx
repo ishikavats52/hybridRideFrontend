@@ -32,6 +32,7 @@ import poolService, { PoolRide } from '../../Services/poolService';
 import { getDriverEarnings } from '../../Services/rideService';
 import RazorpayCheckout from 'react-native-razorpay';
 import { createRazorpayOrder, verifyRazorpayPayment } from '../../Services/paymentService';
+import { CONFIG } from '../../Constants/Config';
 
 const WalletScreen = () => {
     const navigation = useNavigation();
@@ -109,7 +110,7 @@ const WalletScreen = () => {
             const options = {
                 description: 'Wallet Top-up',
                 currency: 'INR',
-                key: 'rzp_test_SL458wxzG3ZY4b',
+                key: CONFIG.RAZORPAY_KEY_ID,
                 amount: amount * 100,
                 name: 'Hybrid Ride',
                 order_id: orderRes.order.id,

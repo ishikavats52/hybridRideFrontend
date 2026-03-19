@@ -14,6 +14,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faCheck, faStar, faLock, faCreditCard, faMoneyBill, faCircleCheck, faCircle } from '@fortawesome/free-solid-svg-icons';
 import { rateRide, updateRideStatus } from '../../Services/rideService';
 import RazorpayCheckout from 'react-native-razorpay';
+import { CONFIG } from '../../Constants/Config';
 
 const { width } = Dimensions.get('window');
 
@@ -43,7 +44,7 @@ const RideCompletedScreen = () => {
                     description: `Payment for Ride ${bookingId || '123'}`,
                     image: 'https://cdn-icons-png.flaticon.com/512/3063/3063822.png', // Or some logo
                     currency: 'INR',
-                    key: 'rzp_test_SL458wxzG3ZY4b',
+                    key: CONFIG.RAZORPAY_KEY_ID,
                     amount: Math.round(parseFloat(finalPrice) * 100),
                     name: 'Hybrid Ride',
                     prefill: {

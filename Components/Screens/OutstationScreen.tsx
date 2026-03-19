@@ -133,7 +133,7 @@ const OutstationScreen = () => {
         const lastDay = new Date(year, month + 1, 0);
 
         const daysInMonth = lastDay.getDate();
-        const startDayOfWeek = firstDay.getDay(); // 0 = Sunday
+        const startDayOfWeek = firstDay.getDay();
 
         const days = [];
 
@@ -222,7 +222,7 @@ const OutstationScreen = () => {
                                                 listView: { position: 'absolute', top: 45, left: 0, right: 0, zIndex: 1000, backgroundColor: '#FFF', elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, borderRadius: 12 }
                                             }}
                                             renderRightButton={() => (
-                                                <TouchableOpacity onPress={fetchCurrentLocation} style={{ justifyContent: 'center', paddingRight: 10 }}>
+                                                <TouchableOpacity onPress={fetchCurrentLocation} style={{ justifyContent: 'center', paddingRight: 0 }}>
                                                     <FontAwesomeIcon icon={faLocationDot} size={18} color="#10B981" />
                                                 </TouchableOpacity>
                                             )}
@@ -304,11 +304,6 @@ const OutstationScreen = () => {
                             </View>
                         </View>
 
-                        {/* Info Tip */}
-                        <View style={styles.infoTip}>
-                            <FontAwesomeIcon icon={faLightbulb} size={16} color="#F59E0B" style={{ marginRight: 8 }} />
-                            <Text style={styles.infoText}>Booking early saves up to 20% on your fare.</Text>
-                        </View>
                     </View>
 
                     {/* Action Button */}
@@ -473,9 +468,7 @@ const styles = StyleSheet.create({
         marginBottom: 4,
         overflow: 'visible',
     },
-    inputWithIcon: {
-
-
+    inputWithIcon:{
         flexDirection: 'row',
         alignItems: 'center',
         overflow: 'visible',
@@ -500,7 +493,7 @@ const styles = StyleSheet.create({
         color: '#111827',
     },
     placeholderText: {
-        color: '#9CA3AF',
+        color: '#9CA3AF'
     },
     divider: {
         height: 1,
