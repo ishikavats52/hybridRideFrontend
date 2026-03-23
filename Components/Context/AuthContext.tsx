@@ -154,6 +154,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsLoading(true);
         try {
             await GoogleSignin.hasPlayServices();
+            // Force account picker by signing out first if previously signed in
+            if (GoogleSignin.hasPreviousSignIn()) {
+                await GoogleSignin.signOut();
+            }
             const userInfo = await GoogleSignin.signIn();
 
             console.log('Google Sign-In raw response:', JSON.stringify(userInfo));
@@ -187,7 +191,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsLoading(true);
         try {
             const data = await authService.register(userData);
-            // Don't set user here, force manual login as per requirement
+            // Don't set user here, force manual login or app-controlled login
             return data;
         } catch (error) {
             throw error;

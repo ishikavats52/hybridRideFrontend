@@ -10,9 +10,10 @@ import {
     Dimensions,
     Alert,
     Image,
+    BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faCamera, faHome, faBriefcase, faPlus, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -24,17 +25,30 @@ const { width } = Dimensions.get('window');
 const ProfileSetupScreen = ({ route }: any) => {
     const navigation = useNavigation();
     const { register, refetchUser, isLoading } = useAuth();
-    const { userType, phoneNumber, googleData } = route.params || { userType: 'PASSENGER', phoneNumber: '', googleData: null };
-    const isDriver = userType === 'DRIVER';
+    const { userType, phoneNumber, googleData, userData } = route.params || { userType: 'PASSENGER', phoneNumber: '', googleData: null, userData: null };
+    const isDriver = userType === 'DRIVER' || userData?.role?.toLowerCase() === 'driver';
 
-    const [fullName, setFullName] = useState(googleData?.name || '');
-    const [email, setEmail] = useState(googleData?.email || '');
-    const [password, setPassword] = useState('');
+    const handleBack = React.useCallback(() => {
+        (navigation as any).navigate('UnifiedLogin', { userType: isDriver ? 'DRIVER' : 'PASSENGER' });
+        return true;
+    }, [navigation, isDriver]);
+
+    useFocusEffect(
+        React.useCallback(() => {
+            const onBackPress = () => handleBack();
+            const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+            return () => subscription.remove();
+        }, [handleBack])
+    );
+
+    const [fullName, setFullName] = useState(userData?.name || googleData?.name || '');
+    const [email, setEmail] = useState(userData?.email || googleData?.email || '');
+    const [password, setPassword] = useState(userData?.password || '');
 
     // Store phone in state to allow editing if missing or incorrect
-    const [phone, setPhone] = useState(phoneNumber || '');
-    const [isEditingPhone, setIsEditingPhone] = useState(!phoneNumber);
-    const [profileImage, setProfileImage] = useState<string | null>(googleData?.picture || null);
+    const [phone, setPhone] = useState(userData?.phone || phoneNumber || '');
+    const [isEditingPhone, setIsEditingPhone] = useState(!(userData?.phone || phoneNumber));
+    const [profileImage, setProfileImage] = useState<string | null>(userData?.profileImage || googleData?.picture || null);
     const [errors, setErrors] = useState({});
 
     const validateForm = () => {
@@ -69,11 +83,14 @@ const ProfileSetupScreen = ({ route }: any) => {
             newErrors.password = 'Password is required';
         } else if (trimmedPassword.length < 8) {
             newErrors.password = 'Password must be at least 8 characters long';
-        } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(trimmedPassword)) {
-            newErrors.password = 'Password must contain at least one uppercase letter, one lowercase letter, and one number';
         }
 
         setErrors(newErrors);
+        console.log("DEBUG: validateForm result:", Object.keys(newErrors).length === 0, "Errors:", newErrors);
+        if (Object.keys(newErrors).length > 0) {
+            const firstError = Object.values(newErrors)[0];
+            Alert.alert("Validation Error", firstError as string);
+        }
         return Object.keys(newErrors).length === 0;
     };
 
@@ -99,11 +116,13 @@ const ProfileSetupScreen = ({ route }: any) => {
         const trimmedPassword = password.trim();
         const trimmedPhone = phone.trim();
 
+        console.log("DEBUG: handleSave called. isDriver:", isDriver, "userType:", userType, "userDataRole:", userData?.role);
+
         if (isDriver) {
             // Pass data to next screen for drivers
-            navigation.navigate('DriverVehicleSelection' as never, {
+            (navigation as any).navigate('DriverVehicleSelection', {
                 userData: { ...route.params?.userData, name: trimmedName, email: trimmedEmail, phone: trimmedPhone, password: trimmedPassword, role: 'driver', profileImage, googleIdToken: googleData?.idToken } // Pass image URI & Google token
-            } as never);
+            });
         } else {
             try {
                 // Register immediately for passengers
@@ -139,8 +158,9 @@ const ProfileSetupScreen = ({ route }: any) => {
                 }
                 // Navigation handled by AppNavigator automatically
             } catch (error: any) {
-                console.error(error);
-                Alert.alert('Registration Failed', error.response?.data?.message || 'Please try again');
+                console.error("Registration Error Detail:", error.response?.data || error.message);
+                const errorMessage = error.response?.data?.message || (error.response?.status === 409 ? "This email or phone is already registered." : "Something went wrong. Please try again.");
+                Alert.alert('Registration Failed', errorMessage);
             }
         }
     };
@@ -148,7 +168,7 @@ const ProfileSetupScreen = ({ route }: any) => {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
+                <TouchableOpacity onPress={handleBack}>
                     <FontAwesomeIcon icon={faArrowLeft} size={24} color="#111827" />
                 </TouchableOpacity>
                 <View>
@@ -197,7 +217,7 @@ const ProfileSetupScreen = ({ route }: any) => {
                         </View>
                     )}
 
-                    {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
+                    {((errors as any).phone) && <Text style={styles.errorText}>{(errors as any).phone}</Text>}
 
                     <Text style={styles.helperText}>Used for ride updates and security.</Text>
 
@@ -209,7 +229,7 @@ const ProfileSetupScreen = ({ route }: any) => {
                         placeholder="Ex. John Doe"
                     />
 
-                    {errors.fullName && <Text style={styles.errorText}>{errors.fullName}</Text>}
+                    {((errors as any).fullName) && <Text style={styles.errorText}>{(errors as any).fullName}</Text>}
 
                     <Text style={styles.label}>EMAIL ADDRESS</Text>
                     <TextInput
@@ -221,7 +241,7 @@ const ProfileSetupScreen = ({ route }: any) => {
                         autoCapitalize="none"
                     />
 
-                    {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+                    {((errors as any).email) && <Text style={styles.errorText}>{(errors as any).email}</Text>}
 
 
 
@@ -234,7 +254,7 @@ const ProfileSetupScreen = ({ route }: any) => {
                         secureTextEntry
                     />
 
-                    {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+                    {((errors as any).password) && <Text style={styles.errorText}>{(errors as any).password}</Text>}
                 </View>
 
                 {/* Saved Addresses */}

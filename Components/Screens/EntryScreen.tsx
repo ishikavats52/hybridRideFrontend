@@ -88,7 +88,7 @@ const EntryScreen = () => {
                 <TouchableOpacity
                     style={[styles.getStartedButton, isDriver && styles.getStartedButtonDriver]}
                     onPress={() => {
-                        navigation.navigate('PassengerLogin', { userType: isDriver ? 'DRIVER' : 'PASSENGER' })
+                        (navigation as any).navigate('UnifiedLogin', { userType: isDriver ? 'DRIVER' : 'PASSENGER' })
                     }}
                 >
                     <Text style={[styles.buttonText, isDriver && styles.buttonTextDriver]}>

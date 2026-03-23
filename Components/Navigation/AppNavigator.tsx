@@ -7,6 +7,7 @@ import { useAuth } from '../Context/AuthContext';
 
 // Auth Screens
 import EntryScreen from '../Screens/EntryScreen';
+import UnifiedLoginScreen from '../Screens/UnifiedLoginScreen';
 import PassengerLoginScreen from '../Screens/PassengerLoginScreen';
 import OtpVerificationScreen from '../Screens/OtpVerificationScreen';
 import ProfileSetupScreen from '../Screens/ProfileSetupScreen';
@@ -76,6 +77,7 @@ const AppNavigator = () => {
                 {!user ? (
                     <Stack.Group>
                         <Stack.Screen name="Entry" component={EntryScreen} />
+                        <Stack.Screen name="UnifiedLogin" component={UnifiedLoginScreen} />
                         <Stack.Screen name="PassengerLogin" component={PassengerLoginScreen} />
                         <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
                         <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />

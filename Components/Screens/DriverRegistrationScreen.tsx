@@ -8,10 +8,11 @@ import {
     ScrollView,
     Dimensions,
     Alert,
-    Modal
+    Modal,
+    BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import {
     faArrowLeft,
@@ -65,10 +66,23 @@ const DriverRegistrationScreen = () => {
 
     const [uploadedDocuments, setUploadedDocuments] = useState<string[]>([]);
     const [documentUris, setDocumentUris] = useState<Record<string, string>>({});
-    const [isLocalLoading, setIsLocalLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleBack = React.useCallback(() => {
+        (navigation as any).navigate('DriverVehicleSelection', { userData: mergedUserData });
+        return true;
+    }, [navigation, mergedUserData]);
+
+    useFocusEffect(
+        React.useCallback(() => {
+            const onBackPress = () => handleBack();
+            const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+            return () => subscription.remove();
+        }, [handleBack])
+    );
     const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-    const isLoading = authLoading || isLocalLoading;
+    const isLoading = authLoading || isSubmitting;
 
     useEffect(() => {
         console.log("DEBUG: DriverRegistration Params Update:");
@@ -119,7 +133,7 @@ const DriverRegistrationScreen = () => {
             return;
         }
 
-        setIsLocalLoading(true);
+        setIsSubmitting(true);
 
         try {
             // 1. Register User (Gets Token & Saves to AsyncStorage via authService)
@@ -186,23 +200,32 @@ const DriverRegistrationScreen = () => {
 
             // 3. Update Auth Context to trigger navigation
             // Alert.alert("Success", "Account created and documents uploaded!");
-            // await refetchUser();
-
-            setIsLocalLoading(false);
             setShowSuccessModal(true);
 
             setTimeout(async () => {
                 setShowSuccessModal(false);
-                await logout();
+                await refetchUser();
             }, 5000);
 
         } catch (error: any) {
             console.error("Registration/Upload Error", error);
-            setIsLocalLoading(false);
-            Alert.alert(
-                'Registration Failed',
-                error.response?.data?.message || error.message || 'Please try again.'
-            );
+            setIsSubmitting(false);
+
+            if (error.response?.status === 409) {
+                // If user exists, they might have partially registered. 
+                // We should check if we have a token (from a previous partial step or by logging in)
+                // For now, inform and suggest login.
+                Alert.alert(
+                    'Account Exists',
+                    'This email or phone is already registered. Please sign in to continue.',
+                    [{ text: 'Go to Login', onPress: () => (navigation as any).navigate('UnifiedLogin') }]
+                );
+            } else {
+                Alert.alert(
+                    'Registration Failed',
+                    error.response?.data?.message || error.message || 'Please try again.'
+                );
+            }
         }
     };
 
@@ -249,7 +272,7 @@ const DriverRegistrationScreen = () => {
                 <SafeAreaView edges={['top', 'left', 'right']}>
                     <View style={styles.navBar}>
                         <Text style={styles.screenTitle}>Driver Registration</Text>
-                        <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <TouchableOpacity onPress={handleBack}>
                             <FontAwesomeIcon icon={faArrowLeft} size={20} color="#FFFFFF" />
                         </TouchableOpacity>
                     </View>

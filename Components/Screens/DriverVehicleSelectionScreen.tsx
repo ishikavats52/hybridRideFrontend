@@ -7,9 +7,10 @@ import {
     TouchableOpacity,
     ScrollView,
     Dimensions,
+    BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import {
     faArrowLeft,
@@ -29,7 +30,23 @@ const DriverVehicleSelectionScreen = ({ route }: any) => {
 
     console.log('DriverVehicleSelection - userData:', userData ? 'Present' : 'Missing', userData);
 
-    const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
+    const [selectedVehicle, setSelectedVehicle] = useState<string | null>(userData?.vehicle?.type || null);
+
+    const handleBack = React.useCallback(() => {
+        (navigation as any).navigate('ProfileSetup', {
+            userType: 'DRIVER',
+            userData: userData
+        });
+        return true;
+    }, [navigation, userData]);
+
+    useFocusEffect(
+        React.useCallback(() => {
+            const onBackPress = () => handleBack();
+            const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+            return () => subscription.remove();
+        }, [handleBack])
+    );
 
     const vehicles = [
         { id: 'CAR', name: 'Car', subtext: 'SEDAN, SUV,\nHATCHBACK', icon: faCar, color: '#EF4444' }, // Red car
@@ -42,7 +59,7 @@ const DriverVehicleSelectionScreen = ({ route }: any) => {
         <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                <TouchableOpacity onPress={handleBack} style={styles.backButton}>
                     <FontAwesomeIcon icon={faArrowLeft} size={20} color="#111827" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>What will you drive?</Text>
@@ -95,10 +112,10 @@ const DriverVehicleSelectionScreen = ({ route }: any) => {
                     ]}
                     disabled={!selectedVehicle}
                     onPress={() => {
-                        navigation.navigate('DriverRegistration' as never, {
+                        (navigation as any).navigate('DriverRegistration', {
                             vehicleType: selectedVehicle,
                             userData: userData // Pass userData forward to Registration
-                        } as never);
+                        });
                     }}
                 >
                     <Text style={[

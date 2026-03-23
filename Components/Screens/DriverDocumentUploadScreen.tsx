@@ -29,6 +29,9 @@ const DriverDocumentUploadScreen = () => {
     const [frontImage, setFrontImage] = useState<string | null>(null);
     const [backImage, setBackImage] = useState<string | null>(null);
 
+    const isBothSidesRequired = documentName.toLowerCase().includes('aadhaar') || documentName.toLowerCase().includes('license');
+    const isSubmitEnabled = isBothSidesRequired ? (!!frontImage && !!backImage) : !!frontImage;
+
 
     const handleImagePick = async (side: 'FRONT' | 'BACK') => {
         const result = await launchImageLibrary({
@@ -62,6 +65,28 @@ const DriverDocumentUploadScreen = () => {
 
     // uploadFile function removed as we are deferring upload
 
+    const handleBack = () => {
+        // Collect current images but DON'T mark as complete
+        const frontDocType = getDocTypeKey(documentName, 'FRONT');
+        const backDocType = backImage ? getDocTypeKey(documentName, 'BACK') : null;
+
+        const newDocs: Record<string, string> = {};
+        if (frontImage) newDocs[frontDocType] = frontImage;
+        if (backImage && backDocType) newDocs[backDocType] = backImage;
+
+        const existingCapturedDocs = (route.params as any)?.capturedDocs || {};
+        const finalCapturedDocs = {
+            ...existingCapturedDocs,
+            ...newDocs
+        };
+
+        (navigation as any).navigate('DriverRegistration', {
+            userData,
+            vehicleType,
+            capturedDocs: finalCapturedDocs
+        });
+    };
+
 
     const handleSubmit = () => {
         if (!frontImage) return;
@@ -90,20 +115,20 @@ const DriverDocumentUploadScreen = () => {
 
         const updatedList = Array.from(new Set([...existingDocs, documentName]));
 
-        navigation.navigate('DriverRegistration' as never, {
+        (navigation as any).navigate('DriverRegistration', {
             completedDocument: documentName,
             updatedDocList: updatedList,
             vehicleType,
             userData,
             capturedDocs: finalCapturedDocs // Pass the FULL set back
-        } as never);
+        });
     };
 
     return (
         <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                <TouchableOpacity onPress={handleBack} style={styles.backButton}>
                     <FontAwesomeIcon icon={faArrowLeft} size={20} color="#111827" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>{documentName}</Text>
@@ -195,11 +220,11 @@ const DriverDocumentUploadScreen = () => {
             {/* Footer */}
             <View style={styles.footer}>
                 <TouchableOpacity
-                    style={[styles.submitButton, (!frontImage) && styles.submitButtonDisabled]}
-                    disabled={!frontImage}
+                    style={[styles.submitButton, isSubmitEnabled && styles.submitButtonActive]}
+                    disabled={!isSubmitEnabled}
                     onPress={handleSubmit}
                 >
-                    <Text style={[styles.submitButtonText, (!frontImage) && styles.submitButtonTextDisabled]}>
+                    <Text style={[styles.submitButtonText, isSubmitEnabled && styles.submitButtonTextActive]}>
                         Submit Document
                     </Text>
                 </TouchableOpacity>
@@ -373,13 +398,24 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         alignItems: 'center',
     },
+    submitButtonActive: {
+        backgroundColor: '#10B981',
+        shadowColor: '#10B981',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
+    },
     submitButtonDisabled: {
         backgroundColor: '#E2E8F0',
     },
     submitButtonText: {
         fontSize: 16,
         fontWeight: '800',
-        color: '#111827',
+        color: '#94A3B8',
+    },
+    submitButtonTextActive: {
+        color: '#FFFFFF',
     },
     submitButtonTextDisabled: {
         color: '#94A3B8',

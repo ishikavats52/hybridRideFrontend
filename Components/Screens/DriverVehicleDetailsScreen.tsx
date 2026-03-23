@@ -27,6 +27,31 @@ const DriverVehicleDetailsScreen = () => {
     const [seatingCapacity, setSeatingCapacity] = useState(4);
     const [bootSpace, setBootSpace] = useState('');
 
+    const handleBack = () => {
+        const vehicleDetails = {
+            make,
+            model,
+            year,
+            plateNumber,
+            color,
+            type: vehicleType,
+            fuelType,
+            seatingCapacity: Number(seatingCapacity),
+            bootSpace
+        };
+
+        const updatedUserData = {
+            ...userData,
+            vehicle: vehicleDetails
+        };
+
+        (navigation as any).navigate('DriverRegistration', {
+            userData: updatedUserData,
+            vehicleType,
+            capturedDocs
+        });
+    };
+
     const handleSubmit = () => {
         if (!make || !model || !year || !plateNumber || !color) {
             Alert.alert("Missing Details", "Please fill in all vehicle details.");
@@ -42,9 +67,10 @@ const DriverVehicleDetailsScreen = () => {
             year,
             plateNumber,
             color,
+            type: vehicleType, // Important: Include vehicle type
             fuelType,
-            seatingCapacity: Number(seatingCapacity),
-            bootSpace
+            seatingCapacity: vehicleType === 'BIKE' ? 1 : Number(seatingCapacity),
+            bootSpace: vehicleType === 'BIKE' ? '0' : bootSpace
         };
 
         const updatedUserData = {
@@ -64,25 +90,25 @@ const DriverVehicleDetailsScreen = () => {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                <TouchableOpacity onPress={handleBack} style={styles.backButton}>
                     <FontAwesomeIcon icon={faArrowLeft} size={20} color="#111827" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Vehicle Details</Text>
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
-                <Text style={styles.label}>Vehicle Make</Text>
+                <Text style={styles.label}>Vehicle Name</Text>
                 <TextInput
                     style={styles.input}
-                    placeholder="e.g. Toyota, Honda, Maruti"
+                    placeholder="e.g. Toyota Civic, Hero Splendor"
                     value={make}
                     onChangeText={setMake}
                 />
 
-                <Text style={styles.label}>Vehicle Model</Text>
+                <Text style={styles.label}>Model / Variant</Text>
                 <TextInput
                     style={styles.input}
-                    placeholder="e.g. Civic, City, Swift"
+                    placeholder="e.g. VXI, ZXI, ABS"
                     value={model}
                     onChangeText={setModel}
                 />
@@ -127,35 +153,39 @@ const DriverVehicleDetailsScreen = () => {
                     ))}
                 </View>
 
-                <Text style={styles.label}>PASSENGER SEAT CAPACITY</Text>
-                <View style={styles.counterContainer}>
-                    <TouchableOpacity
-                        style={styles.counterButton}
-                        onPress={() => setSeatingCapacity(Math.max(1, seatingCapacity - 1))}
-                    >
-                        <Text style={styles.counterText}>-</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.counterValue}>{seatingCapacity}</Text>
-                    <TouchableOpacity
-                        style={styles.counterButtonActive}
-                        onPress={() => setSeatingCapacity(seatingCapacity + 1)}
-                    >
-                        <Text style={styles.counterTextActive}>+</Text>
-                    </TouchableOpacity>
-                </View>
+                {vehicleType !== 'BIKE' && (
+                    <>
+                        <Text style={styles.label}>PASSENGER SEAT CAPACITY</Text>
+                        <View style={styles.counterContainer}>
+                            <TouchableOpacity
+                                style={styles.counterButton}
+                                onPress={() => setSeatingCapacity(Math.max(1, seatingCapacity - 1))}
+                            >
+                                <Text style={styles.counterText}>-</Text>
+                            </TouchableOpacity>
+                            <Text style={styles.counterValue}>{seatingCapacity}</Text>
+                            <TouchableOpacity
+                                style={styles.counterButtonActive}
+                                onPress={() => setSeatingCapacity(seatingCapacity + 1)}
+                            >
+                                <Text style={styles.counterTextActive}>+</Text>
+                            </TouchableOpacity>
+                        </View>
 
-                <Text style={styles.label}>BOOT SPACE (LITERS)</Text>
-                <View style={styles.bootInputContainer}>
-                    <TextInput
-                        style={styles.bootInput}
-                        placeholder="e.g. 209"
-                        keyboardType="numeric"
-                        value={bootSpace}
-                        onChangeText={setBootSpace}
-                    />
-                    <Text style={styles.unitText}>Liters</Text>
-                </View>
-                <Text style={styles.helperText}>Boot capacity helps passengers with luggage choose their ride.</Text>
+                        <Text style={styles.label}>BOOT SPACE (LITERS)</Text>
+                        <View style={styles.bootInputContainer}>
+                            <TextInput
+                                style={styles.bootInput}
+                                placeholder="e.g. 209"
+                                keyboardType="numeric"
+                                value={bootSpace}
+                                onChangeText={setBootSpace}
+                            />
+                            <Text style={styles.unitText}>Liters</Text>
+                        </View>
+                        <Text style={styles.helperText}>Boot capacity helps passengers with luggage choose their ride.</Text>
+                    </>
+                )}
 
                 <View style={{ height: 40 }} />
             </ScrollView>
