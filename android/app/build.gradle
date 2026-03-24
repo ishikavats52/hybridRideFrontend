@@ -73,14 +73,21 @@ def enableProguardInReleaseBuilds = false
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
 def getMapsApiKey() {
-    def localPropertiesFile = rootProject.file("local.properties")
-    if (localPropertiesFile.exists()) {
-        Properties properties = new Properties()
-        properties.load(localPropertiesFile.newDataInputStream())
-        def key = properties.getProperty("MAPS_API_KEY")
+    def envFile = new File(rootDir, "../.env")
+    if (envFile.exists()) {
+        def env = [:]
+        envFile.eachLine { line ->
+            if (line.trim() && !line.startsWith("#")) {
+                def parts = line.split('=')
+                if (parts.length >= 2) {
+                    env[parts[0].trim()] = parts[1].trim().replaceAll("^\"|\"\$", "")
+                }
+            }
+        }
+        def key = env["GOOGLE_MAPS_API_KEY"]
         if (key != null) return key
     }
-    return project.hasProperty("MAPS_API_KEY") ? project.properties["MAPS_API_KEY"] : ""
+    return ""
 }
 
 android {

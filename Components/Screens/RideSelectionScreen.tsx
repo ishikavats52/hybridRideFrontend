@@ -10,6 +10,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapViewDirections from 'react-native-maps-directions';
+import { GOOGLE_MAPS_API_KEY } from '../../Config/maps';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import {
     faArrowLeft,
@@ -40,6 +43,7 @@ const RideSelectionScreen = () => {
     const [selectedTime, setSelectedTime] = useState('hh:mm');
     const [showCalendar, setShowCalendar] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
+    const [calculatedEta, setCalculatedEta] = useState<number | null>(null);
 
     // Reset selected ride when switching modes
     const handleRideTypeChange = (type: string) => {
@@ -113,13 +117,44 @@ const RideSelectionScreen = () => {
 
     return (
         <View style={styles.container}>
-            {/* Map Placeholder Background */}
-            <View style={styles.mapBackground}>
-                {/* Simulated Map Elements */}
-                <View style={[styles.mapRoad, { top: 100, transform: [{ rotate: '45deg' }] }]} />
-                <View style={[styles.mapRoad, { top: 300, transform: [{ rotate: '-15deg' }] }]} />
-                <View style={[styles.mapPark, { top: 150, left: 50 }]} />
-            </View>
+            {/* Real Google Map Background */}
+            <MapView
+                provider={PROVIDER_GOOGLE}
+                style={styles.mapBackground}
+                initialRegion={{
+                    latitude: pickupCoords ? pickupCoords[1] : 28.6139,
+                    longitude: pickupCoords ? pickupCoords[0] : 77.2090,
+                    latitudeDelta: 0.0922,
+                    longitudeDelta: 0.0421,
+                }}
+            >
+                {pickupCoords && (
+                    <Marker
+                        coordinate={{ latitude: pickupCoords[1], longitude: pickupCoords[0] }}
+                        title="Pickup"
+                        pinColor="green"
+                    />
+                )}
+                {dropoffCoords && (
+                    <Marker
+                        coordinate={{ latitude: dropoffCoords[1], longitude: dropoffCoords[0] }}
+                        title="Destination"
+                        pinColor="black"
+                    />
+                )}
+                {pickupCoords && dropoffCoords && (
+                    <MapViewDirections
+                        origin={{ latitude: pickupCoords[1], longitude: pickupCoords[0] }}
+                        destination={{ latitude: dropoffCoords[1], longitude: dropoffCoords[0] }}
+                        apikey={GOOGLE_MAPS_API_KEY}
+                        strokeWidth={4}
+                        strokeColor="#111827"
+                        onReady={(result) => {
+                            setCalculatedEta(Math.ceil(result.duration));
+                        }}
+                    />
+                )}
+            </MapView>
 
             <SafeAreaView style={styles.safeArea}>
                 {/* Header */}
@@ -220,7 +255,9 @@ const RideSelectionScreen = () => {
                                     <View style={styles.rideInfoRight}>
                                         <Text style={styles.ridePrice}>₹7.50</Text>
                                         <View style={styles.etaContainer}>
-                                            <Text style={styles.etaText}>6 MINS</Text>
+                                            <Text style={styles.etaText}>
+                                                {calculatedEta ? `${calculatedEta} MINS` : '6 MINS'}
+                                            </Text>
                                         </View>
                                     </View>
                                 </TouchableOpacity>
@@ -241,7 +278,9 @@ const RideSelectionScreen = () => {
                                     <View style={styles.rideInfoRight}>
                                         <Text style={styles.ridePrice}>₹3.20</Text>
                                         <View style={styles.etaContainer}>
-                                            <Text style={styles.etaText}>3 MINS</Text>
+                                            <Text style={styles.etaText}>
+                                                {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.7))} MINS` : '3 MINS'}
+                                            </Text>
                                         </View>
                                     </View>
                                 </TouchableOpacity>
@@ -267,7 +306,9 @@ const RideSelectionScreen = () => {
                                     <View style={styles.rideInfoRight}>
                                         <Text style={styles.ridePrice}>₹12.50</Text>
                                         <View style={styles.etaContainer}>
-                                            <Text style={styles.etaText}>4 MINS</Text>
+                                            <Text style={styles.etaText}>
+                                                {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.8))} MINS` : '4 MINS'}
+                                            </Text>
                                         </View>
                                     </View>
                                 </TouchableOpacity>
@@ -289,7 +330,9 @@ const RideSelectionScreen = () => {
                                     <View style={styles.rideInfoRight}>
                                         <Text style={styles.ridePrice}>₹6.80</Text>
                                         <View style={styles.etaContainer}>
-                                            <Text style={styles.etaText}>2 MINS</Text>
+                                            <Text style={styles.etaText}>
+                                                {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.6))} MINS` : '2 MINS'}
+                                            </Text>
                                         </View>
                                     </View>
                                 </TouchableOpacity>

@@ -11,11 +11,12 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faCommentAlt, faPhone, faTimes, faCar, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../Context/AuthContext';
-import { getActiveRide } from '../../Services/rideService';
+import { getActiveRide, updateRideStatus } from '../../Services/rideService';
 import MapView, { Marker } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import DriverChatModal from './DriverChatModal';
-import { Linking } from 'react-native';
+import CancellationModal from './CancellationModal';
+import { Linking, Alert } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 import { GOOGLE_MAPS_API_KEY } from '../../Config/maps';
@@ -28,6 +29,7 @@ const RideTrackingScreen = () => {
     const bookingId = (route.params as any)?.bookingId || null;
 
     const [chatVisible, setChatVisible] = useState(false);
+    const [cancelModalVisible, setCancelModalVisible] = useState(false);
 
     // Dynamic driver data with fallback
     const driverName = driver?.name || "Michael";
@@ -38,9 +40,26 @@ const RideTrackingScreen = () => {
     const [distance, setDistance] = useState(0);
     const mapRef = useRef<MapView>(null);
 
-    // Mock Locations for Demo
-    const DRIVER_LOCATION = { latitude: 28.6139, longitude: 77.2090 };
-    const PASSENGER_LOCATION = { latitude: 28.5355, longitude: 77.3910 };
+    // Locations from route params
+    const pickupCoords = (route.params as any)?.pickupCoords;
+    const dropoffCoords = (route.params as any)?.dropoffCoords;
+
+    const PASSENGER_LOCATION = pickupCoords ? {
+        latitude: pickupCoords[1],
+        longitude: pickupCoords[0],
+    } : { latitude: 28.5355, longitude: 77.3910 };
+
+    const DESTINATION_LOCATION = dropoffCoords ? {
+        latitude: dropoffCoords[1],
+        longitude: dropoffCoords[0],
+    } : { latitude: 28.5355, longitude: 77.3910 };
+
+    // In a real app, DRIVER_LOCATION would come from a socket.
+    // For now, we simulate the driver starting near the pickup or moving.
+    const DRIVER_LOCATION = {
+        latitude: PASSENGER_LOCATION.latitude + 0.005,
+        longitude: PASSENGER_LOCATION.longitude + 0.005,
+    };
 
     useEffect(() => {
         // Status Polling logic
@@ -51,7 +70,7 @@ const RideTrackingScreen = () => {
                     const ride = result.data;
                     if (ride.status === 'completed') {
                         clearInterval(pollInterval);
-                        navigation.navigate('RideCompleted' as never, {
+                        (navigation as any).navigate('RideCompleted', {
                             bookingId: ride._id,
                             driver: {
                                 name: ride.driver?.name || "Driver",
@@ -59,15 +78,15 @@ const RideTrackingScreen = () => {
                             },
                             price: ride.finalFare || ride.offeredFare || "0.00",
                             paymentMethod: ride.paymentMethod
-                        } as never);
+                        });
                     } else if (ride.status === 'cancelled') {
                         clearInterval(pollInterval);
-                        navigation.navigate('PassengerHome' as never);
+                        (navigation as any).navigate('PassengerHome');
                     }
                 } else if (result.success && !result.data) {
                     // Ride completed and cleared from active
                     clearInterval(pollInterval);
-                    navigation.navigate('PassengerHome' as never);
+                    (navigation as any).navigate('PassengerHome');
                 }
             } catch (error) {
                 console.error('Polling error in RideTrackingScreen:', error);
@@ -81,6 +100,22 @@ const RideTrackingScreen = () => {
 
     const handleCallDriver = () => {
         Linking.openURL('tel:1234567890');
+    };
+
+    const handleConfirmCancel = async (reason: string) => {
+        if (!bookingId) return;
+        try {
+            const res = await updateRideStatus(bookingId, 'cancelled', reason);
+            if (res.success) {
+                setCancelModalVisible(false);
+                (navigation as any).navigate('PassengerHome');
+            } else {
+                Alert.alert('Error', res.message || 'Failed to cancel ride');
+            }
+        } catch (error) {
+            console.error('Cancel ride error:', error);
+            Alert.alert('Error', 'An error occurred while cancelling the ride');
+        }
     };
 
     return (
@@ -98,7 +133,7 @@ const RideTrackingScreen = () => {
                 >
                     <MapViewDirections
                         origin={DRIVER_LOCATION}
-                        destination={PASSENGER_LOCATION}
+                        destination={DESTINATION_LOCATION}
                         apikey={GOOGLE_MAPS_API_KEY}
                         strokeWidth={4}
                         strokeColor="#10B981"
@@ -117,13 +152,20 @@ const RideTrackingScreen = () => {
                         </View>
                     </Marker>
                     <Marker coordinate={PASSENGER_LOCATION} title="Pickup Location" />
+                    <Marker coordinate={DESTINATION_LOCATION} title="Destination" />
                 </MapView>
             </View>
+
+            <CancellationModal
+                visible={cancelModalVisible}
+                onClose={() => setCancelModalVisible(false)}
+                onConfirm={handleConfirmCancel}
+            />
 
             <SafeAreaView style={styles.uiLayer} pointerEvents="box-none">
 
                 {/* Back Button */}
-                <TouchableOpacity onPress={() => navigation.navigate('PassengerHome' as never, { manualReturn: true } as never)} style={styles.backButton}>
+                <TouchableOpacity onPress={() => (navigation as any).navigate('PassengerHome', { manualReturn: true })} style={styles.backButton}>
                     <View style={styles.backButtonCircle}>
                         <FontAwesomeIcon icon={faArrowLeft} size={20} color="#111827" />
                     </View>
@@ -174,6 +216,13 @@ const RideTrackingScreen = () => {
                             <FontAwesomeIcon icon={faPhone} size={16} color="#FFFFFF" />
                             <Text style={styles.callText}>Call</Text>
                         </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.cancelButton}
+                            onPress={() => setCancelModalVisible(true)}
+                        >
+                            <FontAwesomeIcon icon={faTimes} size={16} color="#EF4444" />
+                            <Text style={styles.cancelText}>Cancel</Text>
+                        </TouchableOpacity>
                     </View>
 
                     {/* Progress Indicator */}
@@ -198,6 +247,12 @@ const RideTrackingScreen = () => {
                 }}
                 driverName={driverName}
                 bookingId={bookingId}
+            />
+
+            <CancellationModal
+                visible={cancelModalVisible}
+                onClose={() => setCancelModalVisible(false)}
+                onConfirm={handleConfirmCancel}
             />
         </View>
     );
@@ -395,6 +450,22 @@ const styles = StyleSheet.create({
         marginLeft: 8,
         fontWeight: '700',
         color: '#FFFFFF',
+    },
+    cancelButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#FEF2F2',
+        paddingVertical: 14,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#FEE2E2',
+    },
+    cancelText: {
+        marginLeft: 8,
+        fontWeight: '700',
+        color: '#EF4444',
     },
     progressContainer: {
         alignItems: 'center',

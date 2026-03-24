@@ -7,6 +7,9 @@ import {
     TouchableOpacity,
     TextInput,
     Alert,
+    ScrollView,
+    KeyboardAvoidingView,
+    Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -109,135 +112,141 @@ const PassengerLoginScreen = ({ route }: any) => {
                 </View>
             </View>
 
-            <View style={styles.content}>
-                {/* Title Section */}
-                <Text style={styles.title}>
-                    {isDriver ? 'Welcome back, Captain' : 'Get moving with\nHybridRide'}
-                </Text>
-                <Text style={styles.subtitle}>
-                    {isDriver
-                        ? 'Sign in or create your driver account.'
-                        : 'Sign in or create your passenger account.'}
-                </Text>
-
-                {/* Space instead of Tabs */}
-                <View style={{ height: 20 }} />
-
-                {/* Input Section */}
-                <View>
-                    <View style={styles.inputRow}>
-                        <TouchableOpacity style={styles.countryCodeContainer}>
-                            <Text style={styles.countryText}>+91</Text>
-                            <FontAwesomeIcon icon={faChevronDown} size={10} color="#6B7280" />
-                        </TouchableOpacity>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Email or Phone Number"
-                            placeholderTextColor="#9CA3AF"
-                            keyboardType="email-address"
-                            value={identifier}
-                            onChangeText={setIdentifier}
-                            autoCapitalize="none"
-                        />
-                        {errors.identifier && <Text style={styles.errorText}>{errors.identifier}</Text>}
-                    </View>
-                    <View style={styles.inputRow}>
-                        <TextInput
-                            style={[styles.input, { marginLeft: 0 }]}
-                            placeholder="Password"
-                            placeholderTextColor="#9CA3AF"
-                            secureTextEntry
-                            value={password}
-                            onChangeText={setPassword}
-                        />
-                        {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-                    </View>
-                </View>
-
-                {/* Continue Button */}
-                <TouchableOpacity
-                    style={[styles.continueButton, isFormValid() && styles.continueButtonActive]}
-                    disabled={!isFormValid() || isLoading}
-                    onPress={handleLogin}
-                >
-                    <Text style={[styles.continueButtonText, isFormValid() && styles.continueButtonTextActive]}>
-                        {isLoading ? 'Logging in...' : 'Login'}
-                    </Text>
-                </TouchableOpacity>
-
-                {/* Security Check Divider */}
-                <View style={styles.securityContainer}>
-                    <View style={styles.line} />
-                    <Text style={styles.securityText}>SECURITY CHECK</Text>
-                    <View style={styles.line} />
-                </View>
-
-                {/* Social Buttons */}
-                <TouchableOpacity
-                    style={styles.socialButton}
-                    disabled={isLoading}
-                    onPress={async () => {
-                        if (!identifier || identifier.length < 10) {
-                            Alert.alert('Phone Required', 'Please enter your mobile number first.');
-                            return;
-                        }
-                        try {
-                            await whatsappLogin(identifier);
-                            (navigation as any).navigate('OtpVerification', { phoneNumber: identifier });
-                        } catch (error: any) {
-                            console.error(error);
-                            Alert.alert('Login Failed', error.response?.data?.message || 'Check your internet or if the number is registered');
-                        }
-                    }}
-                >
-                    <FontAwesomeIcon icon={faWhatsapp} size={24} color="#25D366" style={{ marginRight: 10 }} />
-                    <Text style={styles.socialButtonText}>Login with WhatsApp</Text>
-                </TouchableOpacity>
-
-                {!isDriver && (
-                    <TouchableOpacity
-                        style={styles.socialButton}
-                        disabled={isLoading}
-                        onPress={async () => {
-                            try {
-                                await loginWithGoogle(userType.toLowerCase());
-                            } catch (error: any) {
-                                console.error('Google login catch block:', error);
-                                // Check if user needs to register
-                                if (error.response?.status === 404 && error.response?.data?.isRegistered === false) {
-                                    (navigation as any).navigate('ProfileSetup', {
-                                        userType,
-                                        googleData: error.response.data.googleData
-                                    });
-                                } else {
-                                    Alert.alert('Google Login Failed', 'Could not sign in with Google or server error');
-                                }
-                            }
-                        }}
-                    >
-                        <FontAwesomeIcon icon={faGoogle} size={24} color="#EA4335" style={{ marginRight: 10 }} />
-                        <Text style={styles.socialButtonText}>{isLoading ? 'Signing in...' : 'Google'}</Text>
-                    </TouchableOpacity>
-                )}
-
-                {/* Footer */}
-                <View style={styles.footerContainer}>
-                    <Text style={styles.footerText}>
-                        Don't have an account?{' '}
-                        <Text
-                            style={styles.signupText}
-                            onPress={() => (navigation as any).navigate('ProfileSetup', { userType, phoneNumber: identifier })}
-                        >
-                            Sign Up
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+            >
+                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                    <View style={styles.content}>
+                        {/* Title Section */}
+                        <Text style={styles.title}>
+                            {isDriver ? 'Welcome back, Captain' : 'Get moving with\nHybridRide'}
                         </Text>
-                    </Text>
+                        <Text style={styles.subtitle}>
+                            {isDriver
+                                ? 'Sign in or create your driver account.'
+                                : 'Sign in or create your passenger account.'}
+                        </Text>
 
-                    <Text style={styles.footerTerms}>
-                        By clicking continue, you agree to our <Text style={styles.linkText}>Terms</Text> and <Text style={styles.linkText}>Privacy</Text>.
-                    </Text>
-                </View>
+                        {/* Space instead of Tabs */}
+                        <View style={{ height: 20 }} />
 
-            </View>
+                        {/* Input Section */}
+                        <View>
+                            <View style={styles.inputRow}>
+                                <TouchableOpacity style={styles.countryCodeContainer}>
+                                    <Text style={styles.countryText}>+91</Text>
+                                    <FontAwesomeIcon icon={faChevronDown} size={10} color="#6B7280" />
+                                </TouchableOpacity>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Email or Phone Number"
+                                    placeholderTextColor="#9CA3AF"
+                                    keyboardType="email-address"
+                                    value={identifier}
+                                    onChangeText={setIdentifier}
+                                    autoCapitalize="none"
+                                />
+                                {errors.identifier && <Text style={styles.errorText}>{errors.identifier}</Text>}
+                            </View>
+                            <View style={styles.inputRow}>
+                                <TextInput
+                                    style={[styles.input, { marginLeft: 0 }]}
+                                    placeholder="Password"
+                                    placeholderTextColor="#9CA3AF"
+                                    secureTextEntry
+                                    value={password}
+                                    onChangeText={setPassword}
+                                />
+                                {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+                            </View>
+                        </View>
+
+                        {/* Continue Button */}
+                        <TouchableOpacity
+                            style={[styles.continueButton, isFormValid() && styles.continueButtonActive]}
+                            disabled={!isFormValid() || isLoading}
+                            onPress={handleLogin}
+                        >
+                            <Text style={[styles.continueButtonText, isFormValid() && styles.continueButtonTextActive]}>
+                                {isLoading ? 'Logging in...' : 'Login'}
+                            </Text>
+                        </TouchableOpacity>
+
+                        {/* Security Check Divider */}
+                        <View style={styles.securityContainer}>
+                            <View style={styles.line} />
+                            <Text style={styles.securityText}>SECURITY CHECK</Text>
+                            <View style={styles.line} />
+                        </View>
+
+                        {/* Social Buttons */}
+                        <TouchableOpacity
+                            style={styles.socialButton}
+                            disabled={isLoading}
+                            onPress={async () => {
+                                if (!identifier || identifier.length < 10) {
+                                    Alert.alert('Phone Required', 'Please enter your mobile number first.');
+                                    return;
+                                }
+                                try {
+                                    await whatsappLogin(identifier);
+                                    (navigation as any).navigate('OtpVerification', { phoneNumber: identifier });
+                                } catch (error: any) {
+                                    console.error(error);
+                                    Alert.alert('Login Failed', error.response?.data?.message || 'Check your internet or if the number is registered');
+                                }
+                            }}
+                        >
+                            <FontAwesomeIcon icon={faWhatsapp} size={24} color="#25D366" style={{ marginRight: 10 }} />
+                            <Text style={styles.socialButtonText}>Login with WhatsApp</Text>
+                        </TouchableOpacity>
+
+                        {!isDriver && (
+                            <TouchableOpacity
+                                style={styles.socialButton}
+                                disabled={isLoading}
+                                onPress={async () => {
+                                    try {
+                                        await loginWithGoogle(userType.toLowerCase());
+                                    } catch (error: any) {
+                                        console.error('Google login catch block:', error);
+                                        // Check if user needs to register
+                                        if (error.response?.status === 404 && error.response?.data?.isRegistered === false) {
+                                            (navigation as any).navigate('ProfileSetup', {
+                                                userType,
+                                                googleData: error.response.data.googleData
+                                            });
+                                        } else {
+                                            Alert.alert('Google Login Failed', 'Could not sign in with Google or server error');
+                                        }
+                                    }
+                                }}
+                            >
+                                <FontAwesomeIcon icon={faGoogle} size={24} color="#EA4335" style={{ marginRight: 10 }} />
+                                <Text style={styles.socialButtonText}>{isLoading ? 'Signing in...' : 'Google'}</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        {/* Footer */}
+                        <View style={styles.footerContainer}>
+                            <Text style={styles.footerText}>
+                                Don't have an account?{' '}
+                                <Text
+                                    style={styles.signupText}
+                                    onPress={() => (navigation as any).navigate('ProfileSetup', { userType, phoneNumber: identifier })}
+                                >
+                                    Sign Up
+                                </Text>
+                            </Text>
+
+                            <Text style={styles.footerTerms}>
+                                By clicking continue, you agree to our <Text style={styles.linkText}>Terms</Text> and <Text style={styles.linkText}>Privacy</Text>.
+                            </Text>
+                        </View>
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 };
@@ -277,6 +286,10 @@ const styles = StyleSheet.create({
     },
     badgeTextDriver: {
         color: '#0F766E', // Dark Teal text
+    },
+    scrollContent: {
+        flexGrow: 1,
+        paddingBottom: 40,
     },
     content: {
         paddingHorizontal: 24,

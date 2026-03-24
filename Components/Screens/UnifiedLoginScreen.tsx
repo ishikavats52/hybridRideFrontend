@@ -77,8 +77,10 @@ const UnifiedLoginScreen = () => {
         } catch (error: any) {
             console.error('Google login error:', error);
             if (error.response?.status === 404 && error.response?.data?.isRegistered === false) {
+                console.log("New user detected, navigating to ProfileSetup with phoneNumber:", phoneNumber);
                 (navigation as any).navigate('ProfileSetup', {
                     userType,
+                    phoneNumber,
                     googleData: error.response.data.googleData
                 });
             } else {

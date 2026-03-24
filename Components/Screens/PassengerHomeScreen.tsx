@@ -10,6 +10,7 @@ import {
     Alert,
     PermissionsAndroid
 } from 'react-native';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import BottomNavBar from '../Navigation/BottomNavBar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -136,9 +137,9 @@ const PassengerHomeScreen = () => {
                         const status = ride.status;
 
                         if (status === 'pending') {
-                            navigation.navigate('FindingDriver' as never, { bookingId: ride._id } as never);
+                            (navigation as any).navigate('FindingDriver', { bookingId: ride._id });
                         } else if (status === 'accepted' || status === 'arrived') {
-                            navigation.navigate('DriverAccepted' as never, {
+                            (navigation as any).navigate('DriverAccepted', {
                                 bookingId: ride._id,
                                 driver: {
                                     name: ride.driver?.name || 'Driver',
@@ -151,16 +152,19 @@ const PassengerHomeScreen = () => {
                                     initial: (ride.driver?.name?.[0] || 'D').toUpperCase(),
                                     phone: ride.driver?.phone || '',
                                 },
-                            } as never);
+                                pickupCoords: ride.pickupCoords,
+                            });
                         } else if (status === 'ongoing') {
-                            navigation.navigate('RideTracking' as never, {
+                            (navigation as any).navigate('RideTracking', {
                                 bookingId: ride._id,
                                 driver: {
                                     name: ride.driver?.name || 'Driver',
                                     car: ride.driver?.driverDetails?.vehicle?.model || 'Vehicle',
                                     initial: (ride.driver?.name?.[0] || 'D').toUpperCase(),
-                                }
-                            } as never);
+                                },
+                                pickupCoords: ride.pickupCoords,
+                                dropoffCoords: ride.dropoffCoords,
+                            });
                         }
                     }
                 } catch (error) {
@@ -176,13 +180,34 @@ const PassengerHomeScreen = () => {
 
     return (
         <View style={styles.container}>
-            {/* Map Placeholder Background */}
-            <View style={styles.mapBackground}>
-                {/* Simulated Map Elements */}
-                <View style={[styles.mapRoad, { top: 100, transform: [{ rotate: '45deg' }] }]} />
-                <View style={[styles.mapRoad, { top: 300, transform: [{ rotate: '-15deg' }] }]} />
-                <View style={[styles.mapPark, { top: 150, left: 50 }]} />
-            </View>
+            {/* Real Google Map Background */}
+            <MapView
+                provider={PROVIDER_GOOGLE}
+                style={styles.mapBackground}
+                initialRegion={{
+                    latitude: pickupCoords ? pickupCoords[1] : 28.6139,
+                    longitude: pickupCoords ? pickupCoords[0] : 77.2090,
+                    latitudeDelta: 0.015,
+                    longitudeDelta: 0.0121,
+                }}
+                region={pickupCoords ? {
+                    latitude: pickupCoords[1],
+                    longitude: pickupCoords[0],
+                    latitudeDelta: 0.015,
+                    longitudeDelta: 0.0121,
+                } : undefined}
+                showsUserLocation={true}
+                showsMyLocationButton={false}
+            >
+                {pickupCoords && (
+                    <Marker
+                        coordinate={{
+                            latitude: pickupCoords[1],
+                            longitude: pickupCoords[0],
+                        }}
+                    />
+                )}
+            </MapView>
 
             <SafeAreaView style={styles.safeArea}>
                 {/* Header */}
@@ -200,14 +225,14 @@ const PassengerHomeScreen = () => {
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.toggleButton, rideType === 'OUTSTATION' && styles.activeToggle]}
-                            onPress={() => navigation.navigate('Outstation' as never)}
+                            onPress={() => (navigation as any).navigate('Outstation')}
                         >
                             <Text style={[styles.toggleText, rideType === 'OUTSTATION' && styles.activeToggleText]}>Outstation</Text>
                         </TouchableOpacity>
                     </View>
 
                     {/* Wallet Balance */}
-                    <TouchableOpacity style={styles.walletBadge} onPress={() => navigation.navigate('Wallet' as never)}>
+                    <TouchableOpacity style={styles.walletBadge} onPress={() => (navigation as any).navigate('Wallet')}>
                         <Text style={styles.walletBalText}>₹{user?.walletBalance || 0}</Text>
                     </TouchableOpacity>
                 </View>
@@ -286,10 +311,10 @@ const PassengerHomeScreen = () => {
                                     </TouchableOpacity>
                                 </View>
                                 <View style={[styles.divider, { zIndex: -1 }]} />
-                                <TouchableOpacity style={[styles.inputRow, { zIndex: -1 }]} onPress={() => navigation.navigate('DropLocation' as never, {
+                                <TouchableOpacity style={[styles.inputRow, { zIndex: -1 }]} onPress={() => (navigation as any).navigate('DropLocation', {
                                     pickupAddress,
                                     pickupCoords
-                                } as never)}>
+                                })}>
                                     <Text style={styles.inputLabel}>DROP-OFF</Text>
                                     <Text style={styles.inputPlaceholder}>Search destination</Text>
                                 </TouchableOpacity>
@@ -360,12 +385,11 @@ const PassengerHomeScreen = () => {
 
                     </View>
 
-                    {/* Fixed Footer */}
                     <View style={styles.footer}>
-                        <TouchableOpacity style={styles.bookButton} onPress={() => navigation.navigate('DropLocation' as never, {
+                        <TouchableOpacity style={styles.bookButton} onPress={() => (navigation as any).navigate('DropLocation', {
                             pickupAddress,
                             pickupCoords
-                        } as never)}>
+                        })}>
                             <Text style={styles.bookButtonText}>Book Ride</Text>
                         </TouchableOpacity>
                     </View>

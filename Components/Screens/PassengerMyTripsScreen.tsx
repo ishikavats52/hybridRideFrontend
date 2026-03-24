@@ -13,6 +13,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faCar, faClock, faMapMarkerAlt, faUser, faChevronRight, faCircle } from '@fortawesome/free-solid-svg-icons';
 import poolService, { PoolRide } from '../../Services/poolService';
 import { useAuth } from '../Context/AuthContext';
+import { Alert } from 'react-native';
+import CancellationModal from './CancellationModal';
 
 const { width } = Dimensions.get('window');
 
@@ -25,6 +27,8 @@ const PassengerMyTripsScreen = () => {
     const [activeTab, setActiveTab] = useState<TabType>('Completed');
     const [rides, setRides] = useState<PoolRide[]>([]);
     const [loading, setLoading] = useState(true);
+    const [cancelModalVisible, setCancelModalVisible] = useState(false);
+    const [selectedRideId, setSelectedRideId] = useState<string | null>(null);
 
     const fetchHistory = async () => {
         setLoading(true);
@@ -119,8 +123,42 @@ const PassengerMyTripsScreen = () => {
                     </View>
                     <Text style={styles.priceText}>₹{myTotal}</Text>
                 </View>
+
+                {uiStatus === 'Upcoming' && (
+                    <TouchableOpacity 
+                        style={styles.cancelButton}
+                        onPress={() => {
+                            setSelectedRideId(item._id);
+                            setCancelModalVisible(true);
+                        }}
+                    >
+                        <Text style={styles.cancelButtonText}>Cancel Ride</Text>
+                    </TouchableOpacity>
+                )}
             </TouchableOpacity>
         );
+    };
+
+    const handleConfirmCancel = async (reason: string) => {
+        if (!selectedRideId) return;
+        try {
+            console.log("Cancelling pool booking:", selectedRideId, "Reason:", reason);
+            setLoading(true);
+            const res = await poolService.cancelBooking(selectedRideId, reason);
+            if (res.success) {
+                setCancelModalVisible(false);
+                fetchHistory();
+                Alert.alert("Success", "Your booking has been cancelled.");
+            } else {
+                console.warn("Cancel booking failed:", res.message);
+                Alert.alert("Error", res.message || "Failed to cancel booking");
+            }
+        } catch (error: any) {
+            console.error("Cancel booking error detailed:", error.response?.data || error.message);
+            Alert.alert("Error", "An unexpected error occurred.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     const getStatusColor = (status: string) => {
@@ -169,6 +207,12 @@ const PassengerMyTripsScreen = () => {
                         <Text style={styles.emptyText}>No {activeTab.toLowerCase()} rides found</Text>
                     </View>
                 }
+            />
+
+            <CancellationModal
+                visible={cancelModalVisible}
+                onClose={() => setCancelModalVisible(false)}
+                onConfirm={handleConfirmCancel}
             />
         </SafeAreaView>
     );
@@ -328,6 +372,20 @@ const styles = StyleSheet.create({
         marginTop: 16,
         fontSize: 16,
         color: '#9CA3AF',
+    },
+    cancelButton: {
+        marginTop: 16,
+        backgroundColor: '#FEF2F2',
+        paddingVertical: 10,
+        borderRadius: 10,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#FEE2E2',
+    },
+    cancelButtonText: {
+        color: '#EF4444',
+        fontWeight: '700',
+        fontSize: 14,
     },
 });
 

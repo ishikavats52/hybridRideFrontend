@@ -20,7 +20,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../Context/AuthContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { updateRideStatus } from '../../Services/rideService';
+import { updateRideStatus, getBookingById } from '../../Services/rideService';
 import MapView, { Marker } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 
@@ -108,6 +108,30 @@ const DriverRideNavigationScreen = () => {
             Alert.alert('Error', error?.response?.data?.message || 'Failed to start ride');
         }
     };
+
+    useEffect(() => {
+        if (!bookingId) return;
+
+        const pollInterval = setInterval(async () => {
+            try {
+                const res = await getBookingById(bookingId);
+                if (res.success && res.data) {
+                    if (res.data.status === 'cancelled') {
+                        clearInterval(pollInterval);
+                        Alert.alert(
+                            'Ride Cancelled',
+                            `The passenger has cancelled this ride.\nReason: ${res.data.cancellationReason || 'No reason provided'}`,
+                            [{ text: 'OK', onPress: () => (navigation as any).navigate('DriverHome') }]
+                        );
+                    }
+                }
+            } catch (error) {
+                console.error('Polling error in DriverRideNavigation:', error);
+            }
+        }, 5000);
+
+        return () => clearInterval(pollInterval);
+    }, [bookingId]);
 
     const handleCompleteTrip = async () => {
         try {

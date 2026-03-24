@@ -11,6 +11,8 @@ import {
     Alert,
     Image,
     BackHandler,
+    KeyboardAvoidingView,
+    Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -120,6 +122,7 @@ const ProfileSetupScreen = ({ route }: any) => {
 
         if (isDriver) {
             // Pass data to next screen for drivers
+            console.log("Navigating to DriverVehicleSelection with googleIdToken:", !!googleData?.idToken);
             (navigation as any).navigate('DriverVehicleSelection', {
                 userData: { ...route.params?.userData, name: trimmedName, email: trimmedEmail, phone: trimmedPhone, password: trimmedPassword, role: 'driver', profileImage, googleIdToken: googleData?.idToken } // Pass image URI & Google token
             });
@@ -179,112 +182,89 @@ const ProfileSetupScreen = ({ route }: any) => {
                 <View style={{ width: 24 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+            >
+                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-                {/* Profile Image Placeholer */}
-                <View style={styles.profileImageContainer}>
-                    <TouchableOpacity style={styles.profileImageCircle} onPress={handlePickProfileImage}>
-                        {profileImage ? (
-                            <Image source={{ uri: profileImage }} style={styles.profileImage} />
+                    {/* Profile Image Placeholer */}
+                    <View style={styles.profileImageContainer}>
+                        <TouchableOpacity style={styles.profileImageCircle} onPress={handlePickProfileImage}>
+                            {profileImage ? (
+                                <Image source={{ uri: profileImage }} style={styles.profileImage} />
+                            ) : (
+                                <FontAwesomeIcon icon={faCamera} size={40} color="#9CA3AF" style={{ opacity: 0.5 }} />
+                            )}
+                            <View style={styles.addButton}>
+                                <FontAwesomeIcon icon={faPlus} size={12} color="#FFFFFF" />
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Form */}
+                    <View style={styles.formContainer}>
+                        <Text style={styles.label}>MOBILE NUMBER</Text>
+
+                        {isEditingPhone ? (
+                            <TextInput
+                                style={styles.input}
+                                value={phone}
+                                onChangeText={setPhone}
+                                placeholder="Enter Mobile Number"
+                                keyboardType="phone-pad"
+                                maxLength={10}
+                            />
                         ) : (
-                            <FontAwesomeIcon icon={faCamera} size={40} color="#9CA3AF" style={{ opacity: 0.5 }} />
+                            <View style={styles.readOnlyInputContainer}>
+                                <Text style={styles.readOnlyText}>{phone || 'Enter Phone Number'}</Text>
+                                <TouchableOpacity onPress={() => setIsEditingPhone(true)}>
+                                    <Text style={styles.changeText}>CHANGE</Text>
+                                </TouchableOpacity>
+                            </View>
                         )}
-                        <View style={styles.addButton}>
-                            <FontAwesomeIcon icon={faPlus} size={12} color="#FFFFFF" />
-                        </View>
-                    </TouchableOpacity>
-                </View>
 
-                {/* Form */}
-                <View style={styles.formContainer}>
-                    <Text style={styles.label}>MOBILE NUMBER</Text>
+                        {((errors as any).phone) && <Text style={styles.errorText}>{(errors as any).phone}</Text>}
 
-                    {isEditingPhone ? (
+                        <Text style={styles.helperText}>Used for ride updates and security.</Text>
+
+                        <Text style={styles.label}>FULL NAME</Text>
                         <TextInput
                             style={styles.input}
-                            value={phone}
-                            onChangeText={setPhone}
-                            placeholder="Enter Mobile Number"
-                            keyboardType="phone-pad"
-                            maxLength={10}
+                            value={fullName}
+                            onChangeText={setFullName}
+                            placeholder="Ex. John Doe"
                         />
-                    ) : (
-                        <View style={styles.readOnlyInputContainer}>
-                            <Text style={styles.readOnlyText}>{phone || 'Enter Phone Number'}</Text>
-                            <TouchableOpacity onPress={() => setIsEditingPhone(true)}>
-                                <Text style={styles.changeText}>CHANGE</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
 
-                    {((errors as any).phone) && <Text style={styles.errorText}>{(errors as any).phone}</Text>}
+                        {((errors as any).fullName) && <Text style={styles.errorText}>{(errors as any).fullName}</Text>}
 
-                    <Text style={styles.helperText}>Used for ride updates and security.</Text>
+                        <Text style={styles.label}>EMAIL ADDRESS</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={email}
+                            onChangeText={setEmail}
+                            placeholder="name@example.com"
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                        />
 
-                    <Text style={styles.label}>FULL NAME</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={fullName}
-                        onChangeText={setFullName}
-                        placeholder="Ex. John Doe"
-                    />
-
-                    {((errors as any).fullName) && <Text style={styles.errorText}>{(errors as any).fullName}</Text>}
-
-                    <Text style={styles.label}>EMAIL ADDRESS</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={email}
-                        onChangeText={setEmail}
-                        placeholder="name@example.com"
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                    />
-
-                    {((errors as any).email) && <Text style={styles.errorText}>{(errors as any).email}</Text>}
+                        {((errors as any).email) && <Text style={styles.errorText}>{(errors as any).email}</Text>}
 
 
 
-                    <Text style={styles.label}>PASSWORD</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={password}
-                        onChangeText={setPassword}
-                        placeholder="Create a password"
-                        secureTextEntry
-                    />
+                        <Text style={styles.label}>PASSWORD</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={password}
+                            onChangeText={setPassword}
+                            placeholder="Create a password"
+                            secureTextEntry
+                        />
 
-                    {((errors as any).password) && <Text style={styles.errorText}>{(errors as any).password}</Text>}
-                </View>
-
-                {/* Saved Addresses */}
-                {/* <Text style={styles.sectionTitle}>SAVED ADDRESSES</Text> */}
-
-                {/* <View style={styles.addressCard}>
-                    <View style={styles.iconCircleLight}>
-                        <FontAwesomeIcon icon={faHome} size={20} color="#10B981" />
+                        {((errors as any).password) && <Text style={styles.errorText}>{(errors as any).password}</Text>}
                     </View>
-                    <View style={styles.addressTextContainer}>
-                        <Text style={styles.addressLabel}>HOME ADDRESS</Text>
-                        <Text style={styles.addressValue}>Set home location</Text>
-                    </View>
-                    <TouchableOpacity>
-                        <Text style={styles.addLink}>Add</Text>
-                    </TouchableOpacity>
-                </View> */}
-
-                {/* Favorite Places */}
-                {/* <Text style={styles.sectionTitle}>FAVORITE PLACES</Text>
-                <View style={styles.favoritesContainer}>
-                    <View style={styles.heartCircle}>
-                        <Text style={styles.heartIcon}>♥</Text>
-                    </View>
-                    <Text style={styles.favoritesText}>
-                        Favorite places will appear here{'\n'}automatically based on your ride history.
-                    </Text>
-                </View> */}
-
-            </ScrollView>
+                </ScrollView>
+            </KeyboardAvoidingView>
 
             {/* Footer Button - Fixed at bottom */}
             <View style={styles.footer}>

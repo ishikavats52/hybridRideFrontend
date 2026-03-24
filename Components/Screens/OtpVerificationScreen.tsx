@@ -8,6 +8,7 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
+    ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -66,50 +67,57 @@ const OtpVerificationScreen = () => {
                 </TouchableOpacity>
             </View>
 
-            <View style={styles.content}>
-                <Text style={styles.title}>Enter code</Text>
-                <View style={styles.subtitleContainer}>
-                    <Text style={styles.subtitle}>
-                        We've sent a 6-digit verification code to <Text style={styles.boldText}>{phoneNumber}</Text>
-                    </Text>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+            >
+                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                    <View style={styles.content}>
+                        <Text style={styles.title}>Enter code</Text>
+                        <View style={styles.subtitleContainer}>
+                            <Text style={styles.subtitle}>
+                                We've sent a 6-digit verification code to <Text style={styles.boldText}>{phoneNumber}</Text>
+                            </Text>
+                        </View>
+
+                        <TouchableOpacity style={styles.editContainer} onPress={() => navigation.goBack()}>
+                            <FontAwesomeIcon icon={faPen} size={12} color="#0F766E" />
+                            <Text style={styles.editText}>Wrong details?</Text>
+                        </TouchableOpacity>
+
+                        <View style={styles.otpContainer}>
+                            {otp.map((digit, index) => (
+                                <TextInput
+                                    key={index}
+                                    ref={ref => { (inputs.current as any)[index] = ref; }}
+                                    style={[styles.otpInput, digit ? styles.otpInputFilled : null]}
+                                    keyboardType="number-pad"
+                                    maxLength={1}
+                                    value={digit}
+                                    onChangeText={(value) => handleOtpChange(value, index)}
+                                    onKeyPress={(e) => handleKeyPress(e, index)}
+                                    autoFocus={index === 0}
+                                />
+                            ))}
+                        </View>
+
+                        <TouchableOpacity style={styles.resendButton}>
+                            <Text style={styles.resendText}>Resend Code</Text>
+                        </TouchableOpacity>
+
+                    </View>
+                </ScrollView>
+
+                <View style={styles.footer}>
+                    <TouchableOpacity 
+                        style={[styles.verifyButton, isLoading && { opacity: 0.7 }]} 
+                        onPress={handleVerify}
+                        disabled={isLoading}
+                    >
+                        <Text style={styles.verifyButtonText}>{isLoading ? 'Verifying...' : 'Verify'}</Text>
+                    </TouchableOpacity>
                 </View>
-
-                <TouchableOpacity style={styles.editContainer} onPress={() => navigation.goBack()}>
-                    <FontAwesomeIcon icon={faPen} size={12} color="#0F766E" />
-                    <Text style={styles.editText}>Wrong details?</Text>
-                </TouchableOpacity>
-
-                <View style={styles.otpContainer}>
-                    {otp.map((digit, index) => (
-                        <TextInput
-                            key={index}
-                            ref={ref => { (inputs.current as any)[index] = ref; }}
-                            style={[styles.otpInput, digit ? styles.otpInputFilled : null]}
-                            keyboardType="number-pad"
-                            maxLength={1}
-                            value={digit}
-                            onChangeText={(value) => handleOtpChange(value, index)}
-                            onKeyPress={(e) => handleKeyPress(e, index)}
-                            autoFocus={index === 0}
-                        />
-                    ))}
-                </View>
-
-                <TouchableOpacity style={styles.resendButton}>
-                    <Text style={styles.resendText}>Resend Code</Text>
-                </TouchableOpacity>
-
-            </View>
-
-            <View style={styles.footer}>
-                <TouchableOpacity 
-                    style={[styles.verifyButton, isLoading && { opacity: 0.7 }]} 
-                    onPress={handleVerify}
-                    disabled={isLoading}
-                >
-                    <Text style={styles.verifyButtonText}>{isLoading ? 'Verifying...' : 'Verify'}</Text>
-                </TouchableOpacity>
-            </View>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 };
@@ -123,6 +131,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingTop: 20,
         marginBottom: 20,
+    },
+    scrollContent: {
+        flexGrow: 1,
     },
     content: {
         paddingHorizontal: 24,

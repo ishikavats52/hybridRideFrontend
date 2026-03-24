@@ -49,6 +49,17 @@ export interface PoolRide {
         distance?: number;
         duration?: number;
     };
+    passengers?: Array<{
+        user: {
+            _id: string;
+            name: string;
+            phone: string;
+            profileImage?: string;
+        };
+        seatsBooked: number;
+        bookingStatus: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+        cancellationReason?: string;
+    }>;
 }
 
 export const poolService = {
@@ -83,8 +94,12 @@ export const poolService = {
         return response.data; // { success: boolean, data: PoolRide[] }
     },
 
-    updateTripStatus: async (tripId: string, status: string) => {
-        const response = await apiClient.put(`/pools/${tripId}/status`, { status });
+    updateTripStatus: async (tripId: string, status: string, cancellationReason?: string) => {
+        const response = await apiClient.put(`/pools/${tripId}/status`, { status, cancellationReason });
+        return response.data; // { success: boolean, data: PoolRide }
+    },
+    cancelBooking: async (rideId: string, cancellationReason: string) => {
+        const response = await apiClient.put(`/pools/${rideId}/cancel-booking`, { cancellationReason });
         return response.data; // { success: boolean, data: PoolRide }
     }
 };

@@ -11,7 +11,8 @@ import { useNavigation } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { Alert, ActivityIndicator, Linking } from 'react-native';
 import poolService from '../../Services/poolService';
-import { faChevronLeft, faArrowRightLong, faUser, faPhone, faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
+import { faChevronLeft, faArrowRightLong, faUser, faPhone, faChevronDown, faChevronUp, faTimesCircle } from '@fortawesome/free-solid-svg-icons';
+import CancellationModal from './CancellationModal';
 
 type Tab = 'Upcoming' | 'Past';
 
@@ -21,6 +22,8 @@ const DriverMyTripsScreen = () => {
     const [trips, setTrips] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [expandedTripId, setExpandedTripId] = useState<string | null>(null);
+    const [cancelModalVisible, setCancelModalVisible] = useState(false);
+    const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
 
     React.useEffect(() => {
         const fetchDriverHistory = async () => {
@@ -46,7 +49,9 @@ const DriverMyTripsScreen = () => {
                             phone: p.user?.phone || 'N/A',
                             seats: p.seatsBooked || 1,
                             initial: p.user?.name?.charAt(0) || 'P',
-                            color: '#10B981' // Hybrid Ride Green
+                            status: p.bookingStatus || 'confirmed',
+                            reason: p.cancellationReason || '',
+                            color: p.bookingStatus === 'cancelled' ? '#EF4444' : '#10B981'
                         })) || []
                     }));
                     setTrips(mappedTrips);
@@ -65,10 +70,10 @@ const DriverMyTripsScreen = () => {
     // Simple mapping: 'Upcoming' includes scheduled/ongoing trips. 'Past' includes completed/cancelled trips.
     const currentTrips = trips.filter(trip => activeTab === trip.tabStatus);
 
-    const updateTripStatus = async (tripId: string, action: string) => {
+    const updateTripStatus = async (tripId: string, action: string, reason?: string) => {
         try {
             setLoading(true);
-            const response = await poolService.updateTripStatus(tripId, action);
+            const response = await poolService.updateTripStatus(tripId, action, reason);
             if (response.success) {
                 // Refresh the list from backend to ensure consistent state
                 const refreshResponse = await poolService.getDriverHistory();
@@ -89,7 +94,9 @@ const DriverMyTripsScreen = () => {
                             phone: p.user?.phone || 'N/A',
                             seats: p.seatsBooked || 1,
                             initial: p.user?.name?.charAt(0) || 'P',
-                            color: '#10B981'
+                            status: p.bookingStatus || 'confirmed',
+                            reason: p.cancellationReason || '',
+                            color: p.bookingStatus === 'cancelled' ? '#EF4444' : '#10B981'
                         })) || []
                     }));
                     setTrips(mappedTrips);
@@ -103,6 +110,13 @@ const DriverMyTripsScreen = () => {
             Alert.alert("Error", error.response?.data?.message || "An unexpected error occurred.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleConfirmCancel = (reason: string) => {
+        if (selectedTripId) {
+            updateTripStatus(selectedTripId, 'cancelled', reason);
+            setCancelModalVisible(false);
         }
     };
 
@@ -210,8 +224,18 @@ const DriverMyTripsScreen = () => {
                                                     <Text style={styles.pAvatarText}>{p.initial}</Text>
                                                 </View>
                                                 <View style={styles.pInfo}>
-                                                    <Text style={styles.pName}>{p.name}</Text>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                        <Text style={styles.pName}>{p.name}</Text>
+                                                        {p.status === 'cancelled' && (
+                                                            <View style={styles.pCancelledBadge}>
+                                                                <Text style={styles.pCancelledBadgeText}>CANCELLED</Text>
+                                                            </View>
+                                                        )}
+                                                    </View>
                                                     <Text style={styles.pSeats}>{p.seats} Seat{p.seats > 1 ? 's' : ''}</Text>
+                                                    {p.status === 'cancelled' && p.reason && (
+                                                        <Text style={styles.pReasonText}>Reason: {p.reason}</Text>
+                                                    )}
                                                 </View>
                                                 <TouchableOpacity
                                                     style={styles.pCallButton}
@@ -231,7 +255,13 @@ const DriverMyTripsScreen = () => {
                             <View style={styles.actionRow}>
                                 {activeTab === 'Upcoming' && (
                                     <>
-                                        <TouchableOpacity style={styles.cancelButton} onPress={() => updateTripStatus(trip.id, 'cancelled')}>
+                                        <TouchableOpacity 
+                                            style={styles.cancelButton} 
+                                            onPress={() => {
+                                                setSelectedTripId(trip.id);
+                                                setCancelModalVisible(true);
+                                            }}
+                                        >
                                             <Text style={styles.cancelButtonText}>Cancel Trip</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity style={styles.startTripButton} onPress={() => updateTripStatus(trip.id, 'completed')}>
@@ -256,6 +286,12 @@ const DriverMyTripsScreen = () => {
                     );
                 })}
             </ScrollView>
+
+            <CancellationModal
+                visible={cancelModalVisible}
+                onClose={() => setCancelModalVisible(false)}
+                onConfirm={handleConfirmCancel}
+            />
         </SafeAreaView>
     );
 };
@@ -580,6 +616,24 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '800',
         color: '#EF4444',
+    },
+    pCancelledBadge: {
+        backgroundColor: '#FEF2F2',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+        marginLeft: 8,
+    },
+    pCancelledBadgeText: {
+        fontSize: 8,
+        fontWeight: '800',
+        color: '#EF4444',
+    },
+    pReasonText: {
+        fontSize: 11,
+        color: '#EF4444',
+        marginTop: 2,
+        fontStyle: 'italic',
     }
 });
 

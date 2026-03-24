@@ -128,7 +128,8 @@ const DriverRegistrationScreen = () => {
         uploadedDocuments.includes('Vehicle Details');
 
     const handleRegistration = async () => {
-        if (!mergedUserData || !mergedUserData.password) {
+        // Relax check: Google users might not have a password yet if we didn't force one in ProfileSetup
+        if (!mergedUserData || (!mergedUserData.password && !mergedUserData.googleIdToken)) {
             Alert.alert('Error', 'Missing user information. Please restart registration.');
             return;
         }
@@ -146,6 +147,7 @@ const DriverRegistrationScreen = () => {
                 phone: mergedUserData.phone,
                 password: mergedUserData.password,
                 role: mergedUserData.role,
+                googleIdToken: mergedUserData.googleIdToken, // Pass Google Token
                 driverDetails: { vehicle: mergedUserData.vehicle } // Ensure this is attached
             };
 
