@@ -120,7 +120,7 @@ const PassengerLoginScreen = ({ route }: any) => {
                     <View style={styles.content}>
                         {/* Title Section */}
                         <Text style={styles.title}>
-                            {isDriver ? 'Welcome back, Captain' : 'Get moving with\nHybridRide'}
+                            {isDriver ? 'Welcome back, Captain' : 'Get moving with\nSanchari'}
                         </Text>
                         <Text style={styles.subtitle}>
                             {isDriver

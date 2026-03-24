@@ -196,7 +196,7 @@ const PassengerHomeScreen = () => {
                     latitudeDelta: 0.015,
                     longitudeDelta: 0.0121,
                 } : undefined}
-                showsUserLocation={true}
+                showsUserLocation={false}
                 showsMyLocationButton={false}
             >
                 {pickupCoords && (

@@ -19,7 +19,7 @@ const { width } = Dimensions.get('window');
 const AvailableRidesScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
-    const { rideData, date, fromLocation, toLocation } = (route.params as any) || {};
+    const { rideData, date, fromLocation, toLocation, pickupCoords, dropoffCoords, distance, duration } = (route.params as any) || {};
 
     const [availableRides, setAvailableRides] = React.useState<any[]>([]);
     const [loading, setLoading] = React.useState(true);
@@ -39,7 +39,7 @@ const AvailableRidesScreen = () => {
                     const cityPools = response.data.data.map((t: any) => ({
                         id: t._id,
                         driver: {
-                            name: t.host?.name || `Driver ${t._id.slice(-4)}`,
+                            name: t.host?.name || 'Deleted Driver',
                             rating: t.host?.driverDetails?.ratings?.average || 4.8,
                             carModel: t.vehicle || 'City Pool Vehicle'
                         },
@@ -72,6 +72,10 @@ const AvailableRidesScreen = () => {
             date: ride.eta || date,
             fromLocation: fromLocation || ride.origin?.name,
             toLocation: toLocation || ride.destination?.name,
+            pickupCoords,
+            dropoffCoords,
+            distance: ride.distance || distance,
+            duration: ride.duration || duration,
             maxSeats: ride.maxSeats, // For dynamic seating logic
         });
     };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
     StyleSheet,
     Text,
@@ -12,7 +12,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faArrowRight, faClock, faRulerCombined, faUserGroup } from '@fortawesome/free-solid-svg-icons';
-import { Svg, Line, Circle, G } from 'react-native-svg';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapViewDirections from 'react-native-maps-directions';
+import { GOOGLE_MAPS_API_KEY } from '../../Config/maps';
 import { getImageUrl } from '../../Services/apiClient';
 
 const { width } = Dimensions.get('window');
@@ -20,14 +22,27 @@ const { width } = Dimensions.get('window');
 const TripDetailsScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
-    const { fromLocation, toLocation, rideData, passengers, date } = (route.params as any) || {};
+    const mapRef = useRef<MapView>(null);
+    const { 
+        fromLocation, 
+        toLocation, 
+        rideData, 
+        passengers, 
+        date, 
+        distance, 
+        duration,
+        pickupCoords,
+        dropoffCoords
+    } = (route.params as any) || {};
+    
+    const price = (route.params as any)?.calculatedPrice || rideData?.price || 50;
 
-    // Mock Data
+    // Dynamic Trip Stats from params
     const tripStats = {
-        time: '24 min',
-        distance: '13.2 km',
-        minPrice: 24,
-        maxPrice: 30,
+        time: duration ? `${duration} min` : '24 min',
+        distance: distance ? `${distance} km` : '13.2 km',
+        minPrice: Math.round(price * 0.9),
+        maxPrice: Math.round(price * 1.1),
     };
 
     return (
@@ -47,39 +62,56 @@ const TripDetailsScreen = () => {
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
 
-                {/* Route Visualizer */}
-                <View style={styles.routeContainer}>
-                    <Svg height="100" width={width * 0.8}>
-                        {/* Dashed Line */}
-                        <Line
-                            x1="20"
-                            y1="50"
-                            x2={width * 0.8 - 20}
-                            y2="80"
-                            stroke="#111827"
-                            strokeWidth="2"
-                            strokeDasharray="5, 5"
-                        />
-                        {/* Start Point */}
-                        <Circle cx="20" cy="50" r="8" fill="#14B8A6" />
-
-                        {/* End Point */}
-                        <G x={width * 0.8 - 30} y="70">
-                            <View style={styles.endPointSquare} />
-                        </G>
-                        {/* Distance Label (Simulated centered) */}
-                        <View style={styles.distanceBadge}>
-                            <Text style={styles.distanceBadgeText}>{tripStats.distance}</Text>
-                        </View>
-                    </Svg>
-                    {/* React Native Views for the markers since SVG G support is limited for non-svg children */}
-                    <View style={[styles.marker, { top: 42, left: 12, backgroundColor: '#14B8A6', borderRadius: 8 }]} />
-                    <View style={[styles.marker, { top: 72, right: 12, backgroundColor: '#111827', borderRadius: 2 }]} />
-
+                {/* Real Map Visualizer */}
+                <View style={styles.mapContainer}>
+                    <MapView
+                        ref={mapRef}
+                        provider={PROVIDER_GOOGLE}
+                        style={StyleSheet.absoluteFillObject}
+                        initialRegion={{
+                            latitude: pickupCoords ? pickupCoords[1] : 28.6139,
+                            longitude: pickupCoords ? pickupCoords[0] : 77.2090,
+                            latitudeDelta: 0.05,
+                            longitudeDelta: 0.05,
+                        }}
+                        scrollEnabled={false}
+                        zoomEnabled={false}
+                        pitchEnabled={false}
+                        rotateEnabled={false}
+                    >
+                        {pickupCoords && (
+                            <Marker
+                                coordinate={{ latitude: pickupCoords[1], longitude: pickupCoords[0] }}
+                                title="Pickup"
+                                pinColor="green"
+                            />
+                        )}
+                        {dropoffCoords && (
+                            <Marker
+                                coordinate={{ latitude: dropoffCoords[1], longitude: dropoffCoords[0] }}
+                                title="Destination"
+                                pinColor="black"
+                            />
+                        )}
+                        {pickupCoords && dropoffCoords && (
+                            <MapViewDirections
+                                origin={{ latitude: pickupCoords[1], longitude: pickupCoords[0] }}
+                                destination={{ latitude: dropoffCoords[1], longitude: dropoffCoords[0] }}
+                                apikey={GOOGLE_MAPS_API_KEY}
+                                strokeWidth={4}
+                                strokeColor="#111827"
+                                onReady={(result) => {
+                                    mapRef.current?.fitToCoordinates(result.coordinates, {
+                                        edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+                                        animated: false,
+                                    });
+                                }}
+                            />
+                        )}
+                    </MapView>
                     <View style={styles.distanceBadgeOverlay}>
                         <Text style={styles.distanceBadgeText}>{tripStats.distance}</Text>
                     </View>
-
                 </View>
 
                 {/* Content Card */}
@@ -257,7 +289,26 @@ const TripDetailsScreen = () => {
                                         status: nextStatus
                                     });
                                 } else {
-                                    (navigation as any).navigate('OfferFare');
+                                    // Map Frontend Types to Backend Enums
+                                    const backendRideType = rideData?.type === 'INSTANT' ? 'city' : 'city'; // Adjust mapping logic as needed
+                                    
+                                    let backendVehicleType = 'CAR';
+                                    const v = rideData?.vehicle || '';
+                                    if (v.includes('BIKE')) backendVehicleType = 'BIKE';
+                                    else if (v.includes('AUTO')) backendVehicleType = 'AUTO';
+                                    else backendVehicleType = 'CAR';
+
+                                    (navigation as any).navigate('OfferFare', {
+                                        pickupAddress: fromLocation,
+                                        pickupCoords: pickupCoords,
+                                        dropoffAddress: toLocation,
+                                        dropoffCoords: dropoffCoords,
+                                        vehicleType: backendVehicleType,
+                                        rideType: backendRideType,
+                                        distanceKm: distance,
+                                        durationMins: duration,
+                                        estimatedFare: Math.round(price)
+                                    });
                                 }
                             }
                         }}
@@ -326,18 +377,12 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         alignItems: 'center',
     },
-    routeContainer: {
-        height: 200,
+    mapContainer: {
+        height: 220,
         width: '100%',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 20,
-        position: 'relative',
-    },
-    marker: {
-        width: 16,
-        height: 16,
-        position: 'absolute',
+        backgroundColor: '#E5E7EB',
+        overflow: 'hidden',
+        marginBottom: -32, // Allow card to overlap
     },
     endPointSquare: {
         width: 16,

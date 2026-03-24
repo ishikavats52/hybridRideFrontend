@@ -70,18 +70,18 @@ const EntryScreen = () => {
 
                 <View style={styles.textContainer}>
                     <View style={styles.logoContainer}>
-                        <Text style={[styles.logoTextBold, isDriver && styles.textWhite]}>Hybrid</Text>
-                        <Text style={[styles.logoTextLight, isDriver && styles.textTeal]}>Ride</Text>
+                        <Text style={[styles.logoTextBold, isDriver && styles.textWhite]}>Sanchari</Text>
+                        {/* <Text style={[styles.logoTextLight, isDriver && styles.textTeal]}>Ride</Text> */}
                     </View>
 
                     <Text style={[styles.tagline, isDriver && styles.taglineDriver]}>
-                        {isDriver ? 'Captain Dashboard' : 'Your City Partner'}
+                        {isDriver ? 'Captain Dashboard' : 'Your Seamless City Partner'}
                     </Text>
 
                     <Text style={[styles.description, isDriver && styles.descriptionDriver]}>
                         {isDriver
-                            ? 'Publish your outstation routes and\nstart earning with pooling.'
-                            : 'Seamless city commutes and\noutstation travel in one app.'}
+                            ? 'City rides & Outstation trips. All In One App'
+                            : 'City rides & Outstation trips. All In One App'}
                     </Text>
                 </View>
 
@@ -92,12 +92,12 @@ const EntryScreen = () => {
                     }}
                 >
                     <Text style={[styles.buttonText, isDriver && styles.buttonTextDriver]}>
-                        {isDriver ? 'Go to Dashboard' : 'Get Started'}
+                        {isDriver ? 'Go to Dashboard' : 'Start Your Journey'}
                     </Text>
                     <FontAwesomeIcon icon={faArrowRight} size={20} color={isDriver ? "#111827" : "#FFFFFF"} />
                 </TouchableOpacity>
 
-                <Text style={[styles.footerText, isDriver && styles.footerTextDriver]}>SECURED BY HYBRID ECOSYSTEM</Text>
+                <Text style={[styles.footerText, isDriver && styles.footerTextDriver]}>Premium Rides Powered By Verified Drivers,Secure Payments,And Real-Time Tracking.</Text>
             </View>
         </SafeAreaView>
     );
@@ -335,13 +335,16 @@ const styles = StyleSheet.create({
         color: '#111827', // Dark text
     },
     footerText: {
+        textAlign: 'center',
+        paddingBottom: 20,
         fontSize: 10,
         fontWeight: '700',
         color: '#6B7280',
         letterSpacing: 1.5,
-        textTransform: 'uppercase',
+        // textTransform: 'uppercase',
     },
     footerTextDriver: {
+
         color: '#64748B', // Darker gray
     },
 });

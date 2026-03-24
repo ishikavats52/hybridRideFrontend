@@ -42,11 +42,13 @@ export const acceptRide = async (bookingId: string) => {
 export const updateRideStatus = async (
     bookingId: string,
     status: 'arrived' | 'ongoing' | 'completed' | 'cancelled',
-    cancellationReason?: string
+    cancellationReason?: string,
+    otp?: string
 ) => {
     const response = await apiClient.put(`/bookings/${bookingId}/status`, {
         status,
         cancellationReason,
+        otp,
     });
     return response.data;
 };

@@ -89,7 +89,8 @@ const OfferFareScreen = () => {
                     { text: 'View Ride', onPress: () => navigation.navigate('DriverAccepted' as never) },
                 ]);
             } else {
-                Alert.alert('Error', msg);
+                const serverError = error?.response?.data?.error;
+                Alert.alert('Error', serverError ? `${msg}: ${serverError}` : msg);
             }
         } finally {
             setLoading(false);

@@ -55,10 +55,11 @@ const DriverRideNavigationScreen = () => {
     const driverCoords = params.driverCoords || { latitude: 28.6139, longitude: 77.2090 };
     const pickupCoords = params.pickupCoords || { latitude: 28.5355, longitude: 77.3910 };
 
-    // Obfuscation check: if dropoffCoords is exactly [0,0], keep it null until 'ongoing' state fetches it
+    // Obfuscated check state
+    const [realDropoff, setRealDropoff] = useState<any>(null);
     const rawDropoff = params.dropoffCoords || { latitude: 28.4595, longitude: 77.0266 };
     const isDropoffObfuscated = rawDropoff.latitude === 0 && rawDropoff.longitude === 0;
-    const dropoffCoords = isDropoffObfuscated ? null : rawDropoff;
+    const dropoffCoords = realDropoff || (isDropoffObfuscated ? null : rawDropoff);
 
     // Use null for destination if not yet arrived to avoid drawing a line to nowhere
     const currentDestination = viewState === 'DROP_OFF' && dropoffCoords ? dropoffCoords : pickupCoords;
@@ -92,16 +93,23 @@ const DriverRideNavigationScreen = () => {
     const handleVerify = async () => {
         try {
             if (bookingId) {
-                const result = await updateRideStatus(bookingId, 'ongoing');
+                const result = await updateRideStatus(bookingId, 'ongoing', undefined, otp.join(''));
                 if (!result.success) {
                     Alert.alert('Error', result.message || 'Failed to start ride');
                     return;
                 }
 
-                // Real app should refresh the ride details here to get the actual dropoff coordinates
-                // since the backend just unlocked them.
-                // For this UI mockup, we'll try to use the rawDropoff we received initially if it wasn't obfuscated,
-                // otherwise it requires a refetch.
+                // Refetch booking to get real dropoff coordinates
+                const res = await getBookingById(bookingId);
+                if (res.success && res.data) {
+                    const b = res.data;
+                    if (b.dropoff?.coordinates) {
+                        setRealDropoff({
+                            latitude: b.dropoff.coordinates[1],
+                            longitude: b.dropoff.coordinates[0]
+                        });
+                    }
+                }
             }
             setViewState('DROP_OFF');
         } catch (error: any) {

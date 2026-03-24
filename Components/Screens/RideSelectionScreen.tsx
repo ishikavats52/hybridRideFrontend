@@ -44,6 +44,36 @@ const RideSelectionScreen = () => {
     const [showCalendar, setShowCalendar] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [calculatedEta, setCalculatedEta] = useState<number | null>(null);
+    const [calculatedDistance, setCalculatedDistance] = useState<number | null>(null);
+    const [bookingOtp, setBookingOtp] = useState<string>('');
+
+    useEffect(() => {
+        // Set default date and time to Today/Now
+        const now = new Date();
+        const d = now.getDate();
+        const m = now.toLocaleString('en-US', { month: 'short' });
+        const y = now.getFullYear();
+        setSelectedDate(`${d < 10 ? '0' + d : d}-${m}-${y}`);
+
+        let h = now.getHours();
+        const mins = now.getMinutes();
+        const p = h >= 12 ? 'PM' : 'AM';
+        h = h % 12;
+        h = h ? h : 12;
+        setSelectedTime(`${h}:${mins < 10 ? '0' + mins : mins} ${p}`);
+    }, []);
+
+    const estimateFare = (distKm: number, durMin: number, type: string) => {
+        const rates: any = {
+            SHARE_CAR: { base: 50, perKm: 12, perMin: 1.5 },
+            DIRECT_CAR: { base: 60, perKm: 15, perMin: 2.0 },
+            AUTO: { base: 30, perKm: 9, perMin: 1.0 },
+            BIKE_POOL: { base: 20, perKm: 6, perMin: 0.8 },
+        };
+        const r = rates[type] || rates.SHARE_CAR;
+        const total = r.base + distKm * r.perKm + durMin * r.perMin;
+        return Math.round(total);
+    };
 
     // Reset selected ride when switching modes
     const handleRideTypeChange = (type: string) => {
@@ -56,23 +86,35 @@ const RideSelectionScreen = () => {
     };
 
     const getConfirmText = () => {
+        const dist = calculatedDistance || 5;
+        const dur = calculatedEta || 15;
+        const fare = estimateFare(dist, dur, selectedRide);
+
         switch (selectedRide) {
-            case 'SHARE_CAR': return 'Confirm 1 Share Car (₹7.50)';
-            case 'BIKE_POOL': return 'Confirm Bike Pool (₹3.20)';
-            case 'DIRECT_CAR': return 'Confirm Direct Car (₹12.50)';
-            case 'AUTO': return 'Confirm Auto Rickshaw (₹6.80)';
+            case 'SHARE_CAR': return `Confirm Share Car (₹${fare})`;
+            case 'BIKE_POOL': return `Confirm Bike Pool (₹${fare})`;
+            case 'DIRECT_CAR': return `Confirm Direct Car (₹${fare})`;
+            case 'AUTO': return `Confirm Auto Rickshaw (₹${fare})`;
             default: return 'Confirm';
         }
     };
 
     const handleConfirm = () => {
+        const dist = calculatedDistance || 5;
+        const dur = calculatedEta || 15;
+        const fare = estimateFare(dist, dur, selectedRide);
+
         if (selectedRide === 'BIKE_POOL') {
             // Skip seat preference for Bike
             (navigation as any).navigate('TripDetails', {
-                rideData: { type: rideType, vehicle: selectedRide, price: 3.20 }, // Pass mock data or relevant params
+                rideData: { type: rideType, vehicle: selectedRide, price: fare },
                 date: new Date().toISOString(),
                 fromLocation: pickupAddress,
-                toLocation: dropoffAddress
+                toLocation: dropoffAddress,
+                pickupCoords,
+                dropoffCoords,
+                distance: dist,
+                duration: dur
             });
         } else if (rideType === 'POOLING') {
             let isoDateString = new Date().toISOString();
@@ -95,10 +137,14 @@ const RideSelectionScreen = () => {
             }
 
             (navigation as any).navigate('AvailableRides', {
-                rideData: { type: rideType, vehicle: selectedRide },
+                rideData: { type: rideType, vehicle: selectedRide, price: fare },
                 date: isoDateString,
                 fromLocation: pickupAddress,
-                toLocation: dropoffAddress
+                toLocation: dropoffAddress,
+                pickupCoords,
+                dropoffCoords,
+                distance: dist,
+                duration: dur
             });
         } else {
             // Instant ride confirmation skips SeatPreference
@@ -106,11 +152,15 @@ const RideSelectionScreen = () => {
                 rideData: {
                     type: rideType,
                     vehicle: selectedRide,
-                    price: selectedRide === 'DIRECT_CAR' ? 12.50 : 6.80
+                    price: fare
                 },
                 date: new Date().toISOString(),
                 fromLocation: pickupAddress,
-                toLocation: dropoffAddress
+                toLocation: dropoffAddress,
+                pickupCoords,
+                dropoffCoords,
+                distance: dist,
+                duration: dur
             });
         }
     };
@@ -151,6 +201,7 @@ const RideSelectionScreen = () => {
                         strokeColor="#111827"
                         onReady={(result) => {
                             setCalculatedEta(Math.ceil(result.duration));
+                            setCalculatedDistance(parseFloat(result.distance.toFixed(1)));
                         }}
                     />
                 )}
@@ -253,7 +304,9 @@ const RideSelectionScreen = () => {
                                         </View>
                                     </View>
                                     <View style={styles.rideInfoRight}>
-                                        <Text style={styles.ridePrice}>₹7.50</Text>
+                                        <Text style={styles.ridePrice}>
+                                            ₹{estimateFare(calculatedDistance || 5, calculatedEta || 15, 'SHARE_CAR')}
+                                        </Text>
                                         <View style={styles.etaContainer}>
                                             <Text style={styles.etaText}>
                                                 {calculatedEta ? `${calculatedEta} MINS` : '6 MINS'}
@@ -276,7 +329,9 @@ const RideSelectionScreen = () => {
                                         </View>
                                     </View>
                                     <View style={styles.rideInfoRight}>
-                                        <Text style={styles.ridePrice}>₹3.20</Text>
+                                        <Text style={styles.ridePrice}>
+                                            ₹{estimateFare(calculatedDistance || 5, calculatedEta || 15, 'BIKE_POOL')}
+                                        </Text>
                                         <View style={styles.etaContainer}>
                                             <Text style={styles.etaText}>
                                                 {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.7))} MINS` : '3 MINS'}
@@ -304,7 +359,9 @@ const RideSelectionScreen = () => {
                                         </View>
                                     </View>
                                     <View style={styles.rideInfoRight}>
-                                        <Text style={styles.ridePrice}>₹12.50</Text>
+                                        <Text style={styles.ridePrice}>
+                                            ₹{estimateFare(calculatedDistance || 5, calculatedEta || 15, 'DIRECT_CAR')}
+                                        </Text>
                                         <View style={styles.etaContainer}>
                                             <Text style={styles.etaText}>
                                                 {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.8))} MINS` : '4 MINS'}
@@ -328,7 +385,9 @@ const RideSelectionScreen = () => {
                                         </View>
                                     </View>
                                     <View style={styles.rideInfoRight}>
-                                        <Text style={styles.ridePrice}>₹6.80</Text>
+                                        <Text style={styles.ridePrice}>
+                                            ₹{estimateFare(calculatedDistance || 5, calculatedEta || 15, 'AUTO')}
+                                        </Text>
                                         <View style={styles.etaContainer}>
                                             <Text style={styles.etaText}>
                                                 {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.6))} MINS` : '2 MINS'}
@@ -343,7 +402,7 @@ const RideSelectionScreen = () => {
                         <View style={styles.walletContainer}>
                             <View style={styles.walletLeft}>
                                 <FontAwesomeIcon icon={faWallet} size={20} color="#059669" style={{ marginRight: 12 }} />
-                                <Text style={styles.walletText}>Hybrid Wallet</Text>
+                                <Text style={styles.walletText}>Sanchari Wallet</Text>
                             </View>
                             <TouchableOpacity style={styles.laterButton}>
                                 <FontAwesomeIcon icon={faClock} size={14} color="#111827" style={{ marginRight: 6 }} />

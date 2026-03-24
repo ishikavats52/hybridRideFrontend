@@ -22,7 +22,7 @@ const { width } = Dimensions.get('window');
 const SeatPreferenceScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
-    const { rideData, fromLocation, toLocation, date, maxSeats } = (route.params as any) || {};
+    const { rideData, fromLocation, toLocation, date, maxSeats, pickupCoords, dropoffCoords, distance, duration } = (route.params as any) || {};
 
     const [passengers, setPassengers] = useState(1);
     // Granular seat distribution state
@@ -119,7 +119,7 @@ const SeatPreferenceScreen = () => {
                 fromLocation,
                 toLocation,
                 date
-            } as never);
+            } as any);
         } else {
             navigation.navigate('TripDetails' as any, {
                 rideData,
@@ -128,8 +128,12 @@ const SeatPreferenceScreen = () => {
                 passengers,
                 seatDistribution,
                 date,
-                calculatedPrice
-            } as never);
+                calculatedPrice,
+                pickupCoords,
+                dropoffCoords,
+                distance,
+                duration
+            } as any);
         }
     };
 

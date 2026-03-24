@@ -112,7 +112,7 @@ const WalletScreen = () => {
                 currency: 'INR',
                 key: CONFIG.RAZORPAY_KEY_ID,
                 amount: amount * 100,
-                name: 'Hybrid Ride',
+                name: 'Sanchari',
                 order_id: orderRes.order.id,
                 prefill: {
                     contact: user?.phone || '9999999999',
@@ -153,7 +153,7 @@ const WalletScreen = () => {
 
                     {/* Balance Card */}
                     <View style={styles.balanceCard}>
-                        <Text style={styles.balanceLabel}>HYBRID CASH BALANCE</Text>
+                        <Text style={styles.balanceLabel}>SANCHARI CASH BALANCE</Text>
                         <Text style={styles.balanceAmount}>₹{balance}</Text>
                         <TouchableOpacity
                             style={styles.addMoneyButton}

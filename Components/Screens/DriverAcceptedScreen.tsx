@@ -34,6 +34,7 @@ const DriverAcceptedScreen = () => {
     const [chatVisible, setChatVisible] = React.useState(false);
     const [cancelModalVisible, setCancelModalVisible] = React.useState(false);
     const [etaMinutes, setEtaMinutes] = React.useState<number | null>(null);
+    const [bookingOtp, setBookingOtp] = React.useState<string>('----');
 
     // Simulated driver location (nearby pickup)
     const pickupCoords = {
@@ -89,6 +90,7 @@ const DriverAcceptedScreen = () => {
                 const result = await getActiveRide();
                 if (result.success && result.data) {
                     const ride = result.data;
+                    if (ride.otp) setBookingOtp(ride.otp);
                     if (ride.status === 'ongoing') {
                         clearInterval(pollInterval);
                         (navigation as any).navigate('RideTracking', {
@@ -230,7 +232,7 @@ const DriverAcceptedScreen = () => {
                 <View style={styles.otpContainer}>
                     <Text style={styles.otpLabel}>SHARE THIS CODE WITH DRIVER</Text>
                     <View style={styles.otpRow}>
-                        {['1', '2', '3', '4'].map((digit, index) => (
+                        {bookingOtp.split('').map((digit, index) => (
                             <View key={index} style={styles.otpDigitBox}>
                                 <Text style={styles.otpDigit}>{digit}</Text>
                             </View>
