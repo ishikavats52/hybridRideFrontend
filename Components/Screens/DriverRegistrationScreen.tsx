@@ -146,9 +146,14 @@ const DriverRegistrationScreen = () => {
                 email: mergedUserData.email,
                 phone: mergedUserData.phone,
                 password: mergedUserData.password,
-                role: mergedUserData.role,
+                role: 'driver', // Force driver role on this screen
                 googleIdToken: mergedUserData.googleIdToken, // Pass Google Token
-                driverDetails: { vehicle: mergedUserData.vehicle } // Ensure this is attached
+                driverDetails: { 
+                    vehicle: {
+                        ...mergedUserData.vehicle,
+                        type: vehicleType // Ensure vehicle type (CAR, BIKE, etc.) is included
+                    }
+                } 
             };
 
             console.log("DEBUG: Sending Register Payload:", JSON.stringify(registerPayload, null, 2));

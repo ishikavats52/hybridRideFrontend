@@ -191,7 +191,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsLoading(true);
         try {
             const data = await authService.register(userData);
-            // Don't set user here, force manual login or app-controlled login
+            if (data.data.token) {
+                setUser(data.data);
+            }
             return data;
         } catch (error) {
             throw error;

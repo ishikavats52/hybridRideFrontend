@@ -29,5 +29,16 @@ subprojects { project ->
             enabled = false
         }
     }
+
+    project.pluginManager.withPlugin("com.android.library") {
+        if (project.android.namespace == null) {
+            project.android.namespace = project.group
+        }
+    }
+    project.pluginManager.withPlugin("com.android.application") {
+        if (project.android.namespace == null) {
+            project.android.namespace = project.group
+        }
+    }
 }
 
