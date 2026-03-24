@@ -173,8 +173,9 @@ const DriverRegistrationScreen = () => {
                 try {
                     await driverService.uploadDocument(profileFormData);
                     console.log("Profile image uploaded successfully.");
-                } catch (err) {
-                    console.error("Failed to upload profile image:", err);
+                } catch (err: any) {
+                    const serverError = err.response?.data?.error || err.message;
+                    console.error("Failed to upload profile image:", serverError);
                 }
             }
 
@@ -192,8 +193,9 @@ const DriverRegistrationScreen = () => {
                 try {
                     await driverService.uploadDocument(formData);
                     console.log(`Uploaded ${docType} successfully.`);
-                } catch (err) {
-                    console.error(`Failed to upload ${docType}:`, err);
+                } catch (err: any) {
+                    const serverError = err.response?.data?.error || err.message;
+                    console.error(`Failed to upload ${docType}:`, serverError);
                 }
             }
             console.log("All documents uploaded.");
