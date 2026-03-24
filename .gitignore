@@ -78,5 +78,6 @@ yarn-error.log
 Config/secrets.ts
 .env
 .env.local
+android/app/google-services.json
 *.keystore
 !debug.keystore
