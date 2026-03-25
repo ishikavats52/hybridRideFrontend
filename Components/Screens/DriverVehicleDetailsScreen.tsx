@@ -17,6 +17,8 @@ const DriverVehicleDetailsScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
     const { existingDocs = [], vehicleType = 'CAR', userData, capturedDocs = {} } = route.params as any || {};
+    const isReupload = route.name === 'ReuploadVehicleDetails';
+    const targetScreen = isReupload ? 'ReuploadRegistration' : 'DriverRegistration';
 
     const [make, setMake] = useState('');
     const [model, setModel] = useState('');
@@ -45,7 +47,7 @@ const DriverVehicleDetailsScreen = () => {
             vehicle: vehicleDetails
         };
 
-        (navigation as any).navigate('DriverRegistration', {
+        (navigation as any).navigate(targetScreen, {
             userData: updatedUserData,
             vehicleType,
             capturedDocs
@@ -78,7 +80,7 @@ const DriverVehicleDetailsScreen = () => {
             vehicle: vehicleDetails
         };
 
-        navigation.navigate('DriverRegistration', {
+        navigation.navigate(targetScreen as any, {
             completedDocument: 'Vehicle Details',
             updatedDocList: updatedList,
             vehicleType,

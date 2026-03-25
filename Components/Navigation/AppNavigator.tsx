@@ -90,6 +90,10 @@ const AppNavigator = () => {
                     /* 2. Driver Pending Verification Stack */
                     <Stack.Group>
                         <Stack.Screen name="DriverPendingApproval" component={DriverPendingApprovalScreen} />
+                        <Stack.Screen name="ReuploadRegistration" component={DriverRegistrationScreen} />
+                        <Stack.Screen name="ReuploadDocumentUpload" component={DriverDocumentUploadScreen} />
+                        <Stack.Screen name="ReuploadVehicleSelection" component={DriverVehicleSelectionScreen} />
+                        <Stack.Screen name="ReuploadVehicleDetails" component={DriverVehicleDetailsScreen} />
                     </Stack.Group>
                 ) : user.role === 'driver' ? (
                     /* 2. Driver Stack */

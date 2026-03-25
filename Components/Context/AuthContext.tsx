@@ -13,6 +13,7 @@ interface User {
     phone: string;
     role: 'passenger' | 'driver' | 'admin';
     driverApprovalStatus?: 'pending' | 'approved' | 'rejected';
+    rejectionReason?: string;
     token?: string;
     profileImage?: string;
     walletBalance?: number;
@@ -22,6 +23,7 @@ interface User {
             make?: string;
             model?: string;
             plateNumber?: string;
+            type?: 'CAR' | 'BIKE' | 'AUTO' | 'TRUCK';
         };
         ratings?: {
             average: number;

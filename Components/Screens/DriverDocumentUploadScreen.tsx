@@ -24,6 +24,8 @@ const DriverDocumentUploadScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
     const { documentName = 'Document', description = 'Upload a clear photo.', enableDigiLocker = false, existingDocs = [], vehicleType = 'CAR', userData } = route.params as any || {};
+    const isReupload = route.name === 'ReuploadDocumentUpload';
+    const targetScreen = isReupload ? 'ReuploadRegistration' : 'DriverRegistration';
 
     const [activeTab, setActiveTab] = useState<'MANUAL' | 'DIGILOCKER'>('MANUAL');
     const [frontImage, setFrontImage] = useState<string | null>(null);
@@ -80,7 +82,7 @@ const DriverDocumentUploadScreen = () => {
             ...newDocs
         };
 
-        (navigation as any).navigate('DriverRegistration', {
+        (navigation as any).navigate(targetScreen, {
             userData,
             vehicleType,
             capturedDocs: finalCapturedDocs
@@ -115,7 +117,7 @@ const DriverDocumentUploadScreen = () => {
 
         const updatedList = Array.from(new Set([...existingDocs, documentName]));
 
-        (navigation as any).navigate('DriverRegistration', {
+        (navigation as any).navigate(targetScreen, {
             completedDocument: documentName,
             updatedDocList: updatedList,
             vehicleType,

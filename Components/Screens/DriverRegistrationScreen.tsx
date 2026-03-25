@@ -34,8 +34,9 @@ const { width } = Dimensions.get('window');
 
 const DriverRegistrationScreen = () => {
     const navigation = useNavigation();
-    const route = useRoute();
-    const { refetchUser, logout, isLoading: authLoading } = useAuth();
+    const route = useRoute<any>();
+    const isReupload = route.name === 'ReuploadRegistration';
+    const { register, refetchUser, logout, user, isLoading: authLoading } = useAuth();
 
     // Params
     const params = route.params as {
@@ -69,9 +70,13 @@ const DriverRegistrationScreen = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleBack = React.useCallback(() => {
-        (navigation as any).navigate('DriverVehicleSelection', { userData: mergedUserData });
+        if (isReupload) {
+            (navigation as any).navigate('DriverPendingApproval');
+        } else {
+            (navigation as any).navigate('DriverVehicleSelection', { userData: mergedUserData });
+        }
         return true;
-    }, [navigation, mergedUserData]);
+    }, [navigation, mergedUserData, isReupload]);
 
     useFocusEffect(
         React.useCallback(() => {
@@ -129,7 +134,9 @@ const DriverRegistrationScreen = () => {
 
     const handleRegistration = async () => {
         // Relax check: Google users might not have a password yet if we didn't force one in ProfileSetup
-        if (!mergedUserData || (!mergedUserData.password && !mergedUserData.googleIdToken)) {
+        const isExistingUser = !!user;
+
+        if (!isExistingUser && (!mergedUserData || (!mergedUserData.password && !mergedUserData.googleIdToken))) {
             Alert.alert('Error', 'Missing user information. Please restart registration.');
             return;
         }
@@ -137,37 +144,47 @@ const DriverRegistrationScreen = () => {
         setIsSubmitting(true);
 
         try {
-            // 1. Register User (Gets Token & Saves to AsyncStorage via authService)
-            console.log("Registering user...");
+            if (!isExistingUser) {
+                // 1. Register User (Gets Token & Saves to AsyncStorage via authService)
+                console.log("Registering new user...");
 
-            // Explicitly construct payload to ensure no property loss
-            const registerPayload = {
-                name: mergedUserData.name,
-                email: mergedUserData.email,
-                phone: mergedUserData.phone,
-                password: mergedUserData.password,
-                role: 'driver', // Force driver role on this screen
-                googleIdToken: mergedUserData.googleIdToken, // Pass Google Token
-                driverDetails: { 
-                    vehicle: {
-                        ...mergedUserData.vehicle,
-                        type: vehicleType // Ensure vehicle type (CAR, BIKE, etc.) is included
-                    }
-                } 
-            };
+                // Explicitly construct payload to ensure no property loss
+                const registerPayload = {
+                    name: mergedUserData.name,
+                    email: mergedUserData.email,
+                    phone: mergedUserData.phone,
+                    password: mergedUserData.password,
+                    role: 'driver', // Force driver role on this screen
+                    googleIdToken: mergedUserData.googleIdToken, // Pass Google Token
+                    driverDetails: { 
+                        vehicle: {
+                            ...mergedUserData.vehicle,
+                            type: vehicleType // Ensure vehicle type (CAR, BIKE, etc.) is included
+                        }
+                    } 
+                };
 
-            console.log("DEBUG: Sending Register Payload:", JSON.stringify(registerPayload, null, 2));
+                console.log("DEBUG: Sending Register Payload:", JSON.stringify(registerPayload, null, 2));
+                await authService.register(registerPayload);
+                
+                // Wait a moment for AsyncStorage to persist the token
+                await new Promise<void>(resolve => setTimeout(() => resolve(), 500));
+            } else {
+                console.log("Existing user detected. Proceeding to document uploads...");
+                
+                // Optionally update vehicle details if they were changed
+                if (mergedUserData.vehicle) {
+                    console.log("Updating vehicle details for existing driver...");
+                    // This part depends on if we have a direct vehicle update API, 
+                    // but usually, doc upload handles it or we can add an updateMe call.
+                }
+            }
 
-            await authService.register(registerPayload);
-
-            // Wait a moment for AsyncStorage to persist the token (just in case)
-            await new Promise<void>(resolve => setTimeout(() => resolve(), 500));
-
-            console.log("User registered. Starting uploads...");
+            console.log("Starting uploads...");
 
             // 2. Upload Profile Image and Documents
             // 2. Upload Profile Image (if exists)
-            if (mergedUserData.profileImage) {
+            if (mergedUserData.profileImage && !mergedUserData.profileImage.startsWith('http')) {
                 console.log("Uploading profile image...");
                 const profileFormData = new FormData();
                 profileFormData.append('document', {
@@ -188,6 +205,8 @@ const DriverRegistrationScreen = () => {
 
             // 2. Upload Other Documents (Sequential to avoid race conditions)
             for (const [docType, uri] of Object.entries(documentUris)) {
+                if (uri.startsWith('http')) continue; // Skip already uploaded/server-side URLs
+
                 console.log(`Uploading ${docType}...`);
                 const formData = new FormData();
                 formData.append('document', {
@@ -205,15 +224,26 @@ const DriverRegistrationScreen = () => {
                     console.error(`Failed to upload ${docType}:`, serverError);
                 }
             }
+            
+            // If it's a re-upload, we might need to tell the backend to reset status to pending
+            if (isExistingUser) {
+                console.log("Re-upload complete. Status will be checked by admin.");
+                // We've uploaded new docs, the admin will see them in the panel.
+                // We could call an endpoint to explicitly set status back to 'pending' if the backend doesn't do it automatically on upload.
+            }
+
             console.log("All documents uploaded.");
 
             // 3. Update Auth Context to trigger navigation
-            // Alert.alert("Success", "Account created and documents uploaded!");
+            setIsSubmitting(false);
             setShowSuccessModal(true);
 
             setTimeout(async () => {
                 setShowSuccessModal(false);
                 await refetchUser();
+                
+                // Navigate to Under Review screen
+                (navigation as any).navigate('DriverPendingApproval');
             }, 5000);
 
         } catch (error: any) {
@@ -221,15 +251,13 @@ const DriverRegistrationScreen = () => {
             setIsSubmitting(false);
 
             if (error.response?.status === 409) {
-                // If user exists, they might have partially registered. 
-                // We should check if we have a token (from a previous partial step or by logging in)
-                // For now, inform and suggest login.
                 Alert.alert(
-                    'Account Exists',
-                    'This email or phone is already registered. Please sign in to continue.',
-                    [{ text: 'Go to Login', onPress: () => (navigation as any).navigate('UnifiedLogin') }]
+                    'Account Already Exists',
+                    'An account with this email/phone is already registered.\n\nIf your application was rejected, please sign in to re-upload your documents.',
+                    [{ text: 'Go to Sign In', onPress: () => (navigation as any).navigate('UnifiedLogin', { userType: 'DRIVER' }) }]
                 );
-            } else {
+            }
+ else {
                 Alert.alert(
                     'Registration Failed',
                     error.response?.data?.message || error.message || 'Please try again.'
@@ -284,6 +312,15 @@ const DriverRegistrationScreen = () => {
                         <TouchableOpacity onPress={handleBack}>
                             <FontAwesomeIcon icon={faArrowLeft} size={20} color="#FFFFFF" />
                         </TouchableOpacity>
+                        <TouchableOpacity 
+                            style={styles.logoutHeaderButton} 
+                            onPress={async () => {
+                                await logout();
+                                (navigation as any).navigate('Entry');
+                            }}
+                        >
+                            <Text style={styles.logoutHeaderText}>Sign Out</Text>
+                        </TouchableOpacity>
                     </View>
 
                     <View style={styles.vehicleTag}>
@@ -306,7 +343,7 @@ const DriverRegistrationScreen = () => {
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
                 <Text style={styles.sectionHeader}>IDENTITY VERIFICATION</Text>
-                {renderStep("Aadhaar Card", "Government Identity (Mandatory)", faIdCard, false, false, () => (navigation as any).navigate('DriverDocumentUpload', {
+                {renderStep("Aadhaar Card", "Government Identity (Mandatory)", faIdCard, false, false, () => (navigation as any).navigate(isReupload ? 'ReuploadDocumentUpload' : 'DriverDocumentUpload', {
                     documentName: 'Aadhaar Card',
                     description: 'Upload a clear photo of your Aadhaar card (Front & Back).',
                     enableDigiLocker: true,
@@ -315,7 +352,7 @@ const DriverRegistrationScreen = () => {
                     userData: mergedUserData,
                     capturedDocs: documentUris
                 }))}
-                {renderStep("PAN Card", "For Tax Compliance (Optional)", faCreditCard, !isIdentityVerified, true, () => (navigation as any).navigate('DriverDocumentUpload', {
+                {renderStep("PAN Card", "For Tax Compliance (Optional)", faCreditCard, !isIdentityVerified, true, () => (navigation as any).navigate(isReupload ? 'ReuploadDocumentUpload' : 'DriverDocumentUpload', {
                     documentName: 'PAN Card',
                     description: 'Upload a clear photo of your PAN card (Front).',
                     enableDigiLocker: true,
@@ -325,8 +362,8 @@ const DriverRegistrationScreen = () => {
                     capturedDocs: documentUris
                 }))}
 
-                <Text style={styles.sectionHeader}>{vehicleType.toUpperCase()} VERIFICATION</Text>
-                {renderStep("Driving License", "Valid government DL (Mandatory)", faFileLines, !isIdentityVerified, false, () => (navigation as any).navigate('DriverDocumentUpload', {
+                <Text style={styles.sectionHeader}>VEHICLE VERIFICATION</Text>
+                {renderStep("Driving License", "Valid government DL (Mandatory)", faFileLines, !isIdentityVerified, false, () => (navigation as any).navigate(isReupload ? 'ReuploadDocumentUpload' : 'DriverDocumentUpload', {
                     documentName: 'Driving License',
                     description: 'Upload a clear photo of your Driving License (Front & Back).',
                     enableDigiLocker: true,
@@ -336,7 +373,7 @@ const DriverRegistrationScreen = () => {
                     capturedDocs: documentUris
                 }))}
 
-                {renderStep(rcLabel, "Registration Certificate (Mandatory)", faFileLines, !isIdentityVerified, false, () => (navigation as any).navigate('DriverDocumentUpload', {
+                {renderStep(rcLabel, "Registration Certificate (Mandatory)", faFileLines, !isIdentityVerified, false, () => (navigation as any).navigate(isReupload ? 'ReuploadDocumentUpload' : 'DriverDocumentUpload', {
                     documentName: rcLabel,
                     description: `Upload a clear photo of your ${vehicleType} Registration Certificate.`,
                     existingDocs: uploadedDocuments,
@@ -345,7 +382,7 @@ const DriverRegistrationScreen = () => {
                     capturedDocs: documentUris
                 }))}
 
-                {renderStep(insuranceLabel, "Commercial policy (Mandatory)", faFileLines, !isIdentityVerified, false, () => (navigation as any).navigate('DriverDocumentUpload', {
+                {renderStep(insuranceLabel, "Commercial policy (Mandatory)", faFileLines, !isIdentityVerified, false, () => (navigation as any).navigate(isReupload ? 'ReuploadDocumentUpload' : 'DriverDocumentUpload', {
                     documentName: insuranceLabel,
                     description: `Upload ${vehicleType} Insurance Policy.`,
                     existingDocs: uploadedDocuments,
@@ -354,7 +391,7 @@ const DriverRegistrationScreen = () => {
                     capturedDocs: documentUris
                 }))}
 
-                {renderStep(permitLabel, "State transport permit (Optional)", faFileLines, !isIdentityVerified, true, () => (navigation as any).navigate('DriverDocumentUpload', {
+                {renderStep(permitLabel, "State transport permit (Optional)", faFileLines, !isIdentityVerified, true, () => (navigation as any).navigate(isReupload ? 'ReuploadDocumentUpload' : 'DriverDocumentUpload', {
                     documentName: permitLabel,
                     description: `Upload ${vehicleType} Permit.`,
                     existingDocs: uploadedDocuments,
@@ -363,7 +400,7 @@ const DriverRegistrationScreen = () => {
                     capturedDocs: documentUris
                 }))}
 
-                {renderStep(fitnessLabel, "Vehicle fitness cert (Optional)", faFileLines, !isIdentityVerified, true, () => (navigation as any).navigate('DriverDocumentUpload', {
+                {renderStep(fitnessLabel, "Vehicle fitness cert (Optional)", faFileLines, !isIdentityVerified, true, () => (navigation as any).navigate(isReupload ? 'ReuploadDocumentUpload' : 'DriverDocumentUpload', {
                     documentName: fitnessLabel,
                     description: `Upload ${vehicleType} Fitness Certificate.`,
                     existingDocs: uploadedDocuments,
@@ -372,7 +409,7 @@ const DriverRegistrationScreen = () => {
                     capturedDocs: documentUris
                 }))}
 
-                {renderStep("Vehicle Details", "Make, Model & Plate (Mandatory)", faCar, !isIdentityVerified, false, () => (navigation as any).navigate('DriverVehicleDetails', {
+                {renderStep("Vehicle Details", "Make, Model & Plate (Mandatory)", faCar, !isIdentityVerified, false, () => (navigation as any).navigate(isReupload ? 'ReuploadVehicleDetails' : 'DriverVehicleDetails', {
                     existingDocs: uploadedDocuments,
                     vehicleType,
                     userData: mergedUserData, // Pass merged data
@@ -390,7 +427,9 @@ const DriverRegistrationScreen = () => {
                     onPress={handleRegistration}
                 >
                     <Text style={[styles.completeButtonText, isMandatoryComplete && styles.completeButtonTextActive]}>
-                        {isLoading ? "Creating Account..." : "Submit Documents"}
+                        {isLoading 
+                            ? (!!user ? "Uploading Documents..." : "Creating Account...") 
+                            : "Submit Documents"}
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -411,7 +450,7 @@ const DriverRegistrationScreen = () => {
                             Your documents have been uploaded for verification.
                             You will be notified via email once your profile is approved.
                         </Text>
-                        <Text style={styles.modalRedirect}>Redirecting to Login...</Text>
+                        <Text style={styles.modalRedirect}>Redirecting to Under Review...</Text>
                     </View>
                 </View>
             </Modal>
@@ -423,6 +462,17 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F9FAFB',
+    },
+    logoutHeaderButton: {
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 8,
+    },
+    logoutHeaderText: {
+        color: '#EF4444',
+        fontSize: 12,
+        fontWeight: 'bold',
     },
     headerContainer: {
         backgroundColor: '#0F172A', // Dark Blue

@@ -11,7 +11,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faCar, faClock, faMapMarkerAlt, faUser, faChevronRight, faCircle } from '@fortawesome/free-solid-svg-icons';
-import poolService, { PoolRide } from '../../Services/poolService';
+import poolService from '../../Services/poolService';
+import * as rideService from '../../Services/rideService';
 import { useAuth } from '../Context/AuthContext';
 import { Alert } from 'react-native';
 import CancellationModal from './CancellationModal';
@@ -25,7 +26,7 @@ const PassengerMyTripsScreen = () => {
     const navigation = useNavigation();
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<TabType>('Completed');
-    const [rides, setRides] = useState<PoolRide[]>([]);
+    const [rides, setRides] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [cancelModalVisible, setCancelModalVisible] = useState(false);
     const [selectedRideId, setSelectedRideId] = useState<string | null>(null);
@@ -33,12 +34,35 @@ const PassengerMyTripsScreen = () => {
     const fetchHistory = async () => {
         setLoading(true);
         try {
-            const res = await poolService.getPassengerHistory();
-            if (res.success) {
-                setRides(res.data);
+            // Fetch both Carpool (Pool) and On-Demand (Ride) history
+            const [poolRes, rideRes] = await Promise.all([
+                poolService.getPassengerHistory(),
+                rideService.getRideHistory()
+            ]);
+
+            let combinedRides: any[] = [];
+
+            if (poolRes.success && poolRes.data) {
+                // Mark pool rides for UI mapping
+                combinedRides = [...combinedRides, ...poolRes.data.map((r: any) => ({ ...r, _type: 'POOL' }))];
             }
+
+            if (rideRes.success && rideRes.data) {
+                // Mark on-demand rides for UI mapping
+                combinedRides = [...combinedRides, ...rideRes.data.map((r: any) => ({ ...r, _type: 'BOOKING' }))];
+            }
+
+            // Sort by createdAt or scheduledTime descending
+            combinedRides.sort((a, b) => {
+                const dateA = new Date(a.scheduledTime || a.createdAt).getTime();
+                const dateB = new Date(b.scheduledTime || b.createdAt).getTime();
+                return dateB - dateA;
+            });
+
+            setRides(combinedRides);
         } catch (error) {
-            console.error("Error fetching passenger history:", error);
+            console.error("Error fetching combined history:", error);
+            Alert.alert("Error", "Could not fetch your full ride history.");
         } finally {
             setLoading(false);
         }
@@ -51,6 +75,9 @@ const PassengerMyTripsScreen = () => {
     const mapStatus = (status: string): TabType => {
         switch (status) {
             case 'scheduled': return 'Upcoming';
+            case 'pending': return 'Upcoming';
+            case 'accepted': return 'Upcoming';
+            case 'arrived': return 'Upcoming';
             case 'ongoing': return 'Ongoing';
             case 'completed': return 'Completed';
             case 'cancelled': return 'Cancelled';
@@ -74,11 +101,59 @@ const PassengerMyTripsScreen = () => {
         return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
     };
 
-    const renderRideItem = ({ item }: { item: PoolRide }) => {
+    const renderRideItem = ({ item }: { item: any }) => {
         const uiStatus = mapStatus(item.status);
 
-        // Find specific passenger's booking payload
-        const myBooking = item.passengers?.find(p => p.user?._id === (user as any)?._id || p.user === (user as any)?._id);
+        if (item._type === 'BOOKING') {
+            const originName = item.pickup?.address || 'Pickup';
+            const destName = item.dropoff?.address || 'Dropoff';
+            const dateStr = item.createdAt;
+            const total = (item.finalFare || 0).toFixed(2);
+            const driverName = item.driver?.name || 'Driver';
+
+            return (
+                <TouchableOpacity style={styles.card} activeOpacity={0.9}>
+                    <View style={styles.cardHeader}>
+                        <View style={styles.dateContainer}>
+                            <Text style={styles.dateText}>{formatDate(dateStr)}</Text>
+                            <View style={styles.dot} />
+                            <Text style={styles.timeText}>{formatTime(dateStr)}</Text>
+                        </View>
+                        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(uiStatus).bg }]}>
+                            <Text style={[styles.statusText, { color: getStatusColor(uiStatus).text }]}>{uiStatus}</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.divider} />
+
+                    <View style={styles.routeContainer}>
+                        <View style={styles.routeRow}>
+                            <View style={[styles.routeDot, { backgroundColor: '#10B981' }]} />
+                            <Text style={styles.addressText} numberOfLines={1}>{originName}</Text>
+                        </View>
+                        <View style={styles.routeLine} />
+                        <View style={styles.routeRow}>
+                            <View style={[styles.routeDot, { backgroundColor: '#EF4444' }]} />
+                            <Text style={styles.addressText} numberOfLines={1}>{destName}</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.divider} />
+
+                    <View style={styles.footerRow}>
+                        <View style={styles.driverInfo}>
+                            <FontAwesomeIcon icon={faCar} size={14} color="#6B7280" />
+                            <Text style={styles.carText}>On-Demand</Text>
+                            <Text style={[styles.carText, { color: '#9CA3AF' }]}> • {driverName}</Text>
+                        </View>
+                        <Text style={styles.priceText}>₹{total}</Text>
+                    </View>
+                </TouchableOpacity>
+            );
+        }
+
+        // Default: POOL Ride Mapping
+        const myBooking = item.passengers?.find((p: any) => p.user?._id === (user as any)?._id || p.user === (user as any)?._id);
         const mySeats = myBooking?.seatsBooked || 1;
         const myTotal = ((item.pricePerSeat || 15) * mySeats).toFixed(2);
 

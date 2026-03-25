@@ -11,7 +11,8 @@ import { useNavigation } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { Alert, ActivityIndicator, Linking } from 'react-native';
 import poolService from '../../Services/poolService';
-import { faChevronLeft, faArrowRightLong, faUser, faPhone, faChevronDown, faChevronUp, faTimesCircle } from '@fortawesome/free-solid-svg-icons';
+import * as rideService from '../../Services/rideService';
+import { faChevronLeft, faArrowRightLong, faUser, faPhone, faChevronDown, faChevronUp, faTimesCircle, faCar } from '@fortawesome/free-solid-svg-icons';
 import CancellationModal from './CancellationModal';
 
 type Tab = 'Upcoming' | 'Past';
@@ -25,46 +26,81 @@ const DriverMyTripsScreen = () => {
     const [cancelModalVisible, setCancelModalVisible] = useState(false);
     const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
 
-    React.useEffect(() => {
-        const fetchDriverHistory = async () => {
-            setLoading(true);
-            try {
-                const response = await poolService.getDriverHistory();
+    const fetchHistory = async () => {
+        setLoading(true);
+        try {
+            const [poolRes, rideRes] = await Promise.all([
+                poolService.getDriverHistory(),
+                rideService.getRideHistory() // This endpoint now returns on-demand rides
+            ]);
 
-                if (response.success) {
-                    // Map MongoDB keys to Component UI Keys
-                    const mappedTrips = response.data.map((t: any) => ({
-                        id: t._id,
-                        date: new Date(t.scheduledTime).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + new Date(t.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                        origin: t.origin?.name || 'Unknown',
-                        destination: t.destination?.name || 'Unknown',
-                        price: t.pricePerSeat ? `₹${t.pricePerSeat}` : '₹15',
-                        bookedSeats: t.totalSeats - t.availableSeats,
-                        totalSeats: t.totalSeats,
-                        status: t.status, // Actual DB enum
-                        tabStatus: t.status === 'scheduled' || t.status === 'ongoing' ? 'Upcoming' : 'Past',
-                        passengers: t.passengers?.map((p: any) => ({
-                            id: p.user?._id || Math.random().toString(),
-                            name: p.user?.name || 'Passenger',
-                            phone: p.user?.phone || 'N/A',
-                            seats: p.seatsBooked || 1,
-                            initial: p.user?.name?.charAt(0) || 'P',
-                            status: p.bookingStatus || 'confirmed',
-                            reason: p.cancellationReason || '',
-                            color: p.bookingStatus === 'cancelled' ? '#EF4444' : '#10B981'
-                        })) || []
-                    }));
-                    setTrips(mappedTrips);
-                }
-            } catch (error) {
-                console.error("Error fetching driver history:", error);
-                Alert.alert("Error", "Could not fetch your trips");
-            } finally {
-                setLoading(false);
+            let combined: any[] = [];
+
+            if (poolRes.success && poolRes.data) {
+                combined = [...combined, ...poolRes.data.map((t: any) => ({
+                    _type: 'POOL',
+                    id: t._id,
+                    date: new Date(t.scheduledTime).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + new Date(t.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    rawDate: t.scheduledTime,
+                    origin: t.origin?.name || 'Unknown',
+                    destination: t.destination?.name || 'Unknown',
+                    price: t.pricePerSeat ? `₹${t.pricePerSeat}` : '₹15',
+                    bookedSeats: t.totalSeats - t.availableSeats,
+                    totalSeats: t.totalSeats,
+                    status: t.status,
+                    tabStatus: t.status === 'scheduled' || t.status === 'ongoing' ? 'Upcoming' : 'Past',
+                    passengers: t.passengers?.map((p: any) => ({
+                        id: p.user?._id || Math.random().toString(),
+                        name: p.user?.name || 'Passenger',
+                        phone: p.user?.phone || 'N/A',
+                        seats: p.seatsBooked || 1,
+                        initial: p.user?.name?.charAt(0) || 'P',
+                        status: p.bookingStatus || 'confirmed',
+                        reason: p.cancellationReason || '',
+                        color: p.bookingStatus === 'cancelled' ? '#EF4444' : '#10B981'
+                    })) || []
+                }))];
             }
-        };
 
-        fetchDriverHistory();
+            if (rideRes.success && rideRes.data) {
+                combined = [...combined, ...rideRes.data.map((t: any) => ({
+                    _type: 'BOOKING',
+                    id: t._id,
+                    date: new Date(t.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    rawDate: t.createdAt,
+                    origin: t.pickup?.address || 'Unknown',
+                    destination: t.dropoff?.address || 'Unknown',
+                    price: `₹${t.finalFare || 0}`,
+                    bookedSeats: 1,
+                    totalSeats: 1,
+                    status: t.status,
+                    tabStatus: (t.status === 'completed' || t.status === 'cancelled') ? 'Past' : 'Upcoming',
+                    passengers: [{
+                        id: t.passenger?._id,
+                        name: t.passenger?.name || 'Passenger',
+                        phone: t.passenger?.phone || 'N/A',
+                        seats: 1,
+                        initial: t.passenger?.name?.charAt(0) || 'P',
+                        status: t.status === 'cancelled' ? 'cancelled' : 'confirmed',
+                        color: t.status === 'cancelled' ? '#EF4444' : '#10B981'
+                    }]
+                }))];
+            }
+
+            // Sort by rawDate descending
+            combined.sort((a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime());
+            setTrips(combined);
+
+        } catch (error) {
+            console.error("Error fetching driver history:", error);
+            Alert.alert("Error", "Could not fetch your trips");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    React.useEffect(() => {
+        fetchHistory();
     }, []);
 
     // Simple mapping: 'Upcoming' includes scheduled/ongoing trips. 'Past' includes completed/cancelled trips.
@@ -73,34 +109,26 @@ const DriverMyTripsScreen = () => {
     const updateTripStatus = async (tripId: string, action: string, reason?: string) => {
         try {
             setLoading(true);
-            const response = await poolService.updateTripStatus(tripId, action, reason);
+            const trip = trips.find(t => t.id === tripId);
+            const isBooking = trip?._type === 'BOOKING';
+
+            let response;
+            if (isBooking) {
+                // Mapping component actions ('completed', 'cancelled') to rideService status
+                const statusMap: any = {
+                    'completed': 'completed',
+                    'cancelled': 'cancelled',
+                    'ongoing': 'ongoing',
+                    'arrived': 'arrived'
+                };
+                response = await rideService.updateRideStatus(tripId, statusMap[action] || action, reason);
+            } else {
+                response = await poolService.updateTripStatus(tripId, action, reason);
+            }
+
             if (response.success) {
                 // Refresh the list from backend to ensure consistent state
-                const refreshResponse = await poolService.getDriverHistory();
-                if (refreshResponse.success) {
-                    const mappedTrips = refreshResponse.data.map((t: any) => ({
-                        id: t._id,
-                        date: new Date(t.scheduledTime).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + new Date(t.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                        origin: t.origin?.name || 'Unknown',
-                        destination: t.destination?.name || 'Unknown',
-                        price: t.pricePerSeat ? `₹${t.pricePerSeat}` : '₹15',
-                        bookedSeats: t.totalSeats - t.availableSeats,
-                        totalSeats: t.totalSeats,
-                        status: t.status, // Keep actual status ('scheduled', 'ongoing', 'completed', 'cancelled')
-                        tabStatus: t.status === 'scheduled' || t.status === 'ongoing' ? 'Upcoming' : 'Past',
-                        passengers: t.passengers?.map((p: any) => ({
-                            id: p.user?._id || Math.random().toString(),
-                            name: p.user?.name || 'Passenger',
-                            phone: p.user?.phone || 'N/A',
-                            seats: p.seatsBooked || 1,
-                            initial: p.user?.name?.charAt(0) || 'P',
-                            status: p.bookingStatus || 'confirmed',
-                            reason: p.cancellationReason || '',
-                            color: p.bookingStatus === 'cancelled' ? '#EF4444' : '#10B981'
-                        })) || []
-                    }));
-                    setTrips(mappedTrips);
-                }
+                await fetchHistory();
                 Alert.alert("Success", `Trip has been marked as ${action}.`);
             } else {
                 Alert.alert("Error", "Could not update trip status.");

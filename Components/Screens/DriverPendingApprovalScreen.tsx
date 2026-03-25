@@ -6,8 +6,10 @@ import {
     TouchableOpacity,
     Animated,
     Dimensions,
+    ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import {
     faHourglassHalf,
@@ -22,6 +24,7 @@ const { width } = Dimensions.get('window');
 
 const DriverPendingApprovalScreen = () => {
     const { logout, user } = useAuth();
+    const navigation = useNavigation();
 
     // Pulsing animation for hourglass
     const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -62,77 +65,96 @@ const DriverPendingApprovalScreen = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <Animated.View style={[styles.inner, { opacity: fadeAnim }]}>
+            <ScrollView 
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
+                <Animated.View style={[styles.inner, { opacity: fadeAnim }]}>
 
-                {/* Icon */}
-                <Animated.View style={[styles.iconContainer, { transform: [{ scale: pulseAnim }] }, isRejected && styles.iconContainerRejected]}>
-                    <FontAwesomeIcon
-                        icon={faHourglassHalf}
-                        size={40}
-                        color={isRejected ? '#EF4444' : '#F59E0B'}
-                    />
-                </Animated.View>
+                    {/* Icon */}
+                    <Animated.View style={[styles.iconContainer, { transform: [{ scale: pulseAnim }] }, isRejected && styles.iconContainerRejected]}>
+                        <FontAwesomeIcon
+                            icon={faHourglassHalf}
+                            size={40}
+                            color={isRejected ? '#EF4444' : '#F59E0B'}
+                        />
+                    </Animated.View>
 
-                {/* Title */}
-                <Text style={[styles.title, isRejected && styles.titleRejected]}>
-                    {isRejected ? 'Application Rejected' : 'Under Review'}
-                </Text>
-                <Text style={styles.subtitle}>
-                    {isRejected
-                        ? 'Your application did not meet our requirements. Please contact support or re-apply.'
-                        : 'Your documents are being verified by our team. This usually takes 24–48 hours.'}
-                </Text>
+                    {/* Title */}
+                    <Text style={[styles.title, isRejected && styles.titleRejected]}>
+                        {isRejected ? 'Application Rejected' : 'Under Review'}
+                    </Text>
+                    <Text style={styles.subtitle}>
+                        {isRejected
+                            ? user?.rejectionReason || 'Your application did not meet our requirements. Please re-upload your documents.'
+                            : 'Your documents are being verified by our team. This usually takes 24–48 hours.'}
+                    </Text>
 
-                {/* Progress Steps */}
-                <View style={styles.stepsContainer}>
-                    {steps.map((step, i) => (
-                        <View key={i} style={styles.stepRow}>
-                            <View style={[
-                                styles.stepDot,
-                                step.done ? styles.stepDotDone :
-                                    step.active ? styles.stepDotActive :
-                                        styles.stepDotPending
-                            ]}>
-                                <FontAwesomeIcon
-                                    icon={step.icon}
-                                    size={14}
-                                    color={step.done ? '#FFFFFF' : (step.active ? '#F59E0B' : '#9CA3AF')}
-                                />
+                    {isRejected && (
+                        <TouchableOpacity 
+                            style={styles.reuploadButton} 
+                            onPress={() => (navigation as any).navigate('ReuploadRegistration', { 
+                                userData: user,
+                                vehicleType: user?.driverDetails?.vehicle?.type || 'CAR'
+                            })}
+                        >
+                            <Text style={styles.reuploadButtonText}>Re-upload Documents</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    {/* Progress Steps */}
+                    <View style={styles.stepsContainer}>
+                        {steps.map((step, i) => (
+                            <View key={i} style={styles.stepRow}>
+                                <View style={[
+                                    styles.stepDot,
+                                    step.done ? styles.stepDotDone :
+                                        step.active ? styles.stepDotActive :
+                                            styles.stepDotPending
+                                ]}>
+                                    <FontAwesomeIcon
+                                        icon={step.icon}
+                                        size={14}
+                                        color={step.done ? '#FFFFFF' : (step.active ? '#F59E0B' : '#9CA3AF')}
+                                    />
+                                </View>
+                                <Text style={[
+                                    styles.stepLabel,
+                                    step.done ? styles.stepLabelDone :
+                                        step.active ? styles.stepLabelActive :
+                                            styles.stepLabelPending
+                                ]}>
+                                    {step.label}
+                                </Text>
+                                {i < steps.length - 1 && (
+                                    <View style={[styles.stepLine, step.done && styles.stepLineDone]} />
+                                )}
                             </View>
-                            <Text style={[
-                                styles.stepLabel,
-                                step.done ? styles.stepLabelDone :
-                                    step.active ? styles.stepLabelActive :
-                                        styles.stepLabelPending
-                            ]}>
-                                {step.label}
-                            </Text>
-                            {i < steps.length - 1 && (
-                                <View style={[styles.stepLine, step.done && styles.stepLineDone]} />
-                            )}
-                        </View>
-                    ))}
-                </View>
+                        ))}
+                    </View>
 
-                {/* Info Card */}
-                <View style={styles.infoCard}>
-                    <Text style={styles.infoTitle}>What happens next?</Text>
-                    <Text style={styles.infoText}>
-                        Our team reviews your Aadhaar, Driving License, {'\n'}
-                        and Vehicle Registration documents.
-                    </Text>
-                    <Text style={styles.infoText}>
-                        You will receive an <Text style={styles.infoHighlight}>email notification</Text> once your account is approved.
-                    </Text>
-                </View>
+                    {/* Info Card */}
+                    <View style={styles.infoCard}>
+                        <Text style={styles.infoTitle}>What happens next?</Text>
+                        <Text style={styles.infoText}>
+                            Our team reviews your Aadhaar, Driving License, {'\n'}
+                            and Vehicle Registration documents.
+                        </Text>
+                        <Text style={styles.infoText}>
+                            You will receive an <Text style={styles.infoHighlight}>email notification</Text> once your account is approved.
+                        </Text>
+                    </View>
 
-                {/* Logout */}
-                <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-                    <FontAwesomeIcon icon={faArrowRightFromBracket} size={16} color="#6B7280" />
-                    <Text style={styles.logoutText}>Sign Out</Text>
-                </TouchableOpacity>
+                    {/* Actions Row */}
+                    <View style={styles.actionsRow}>
+                        <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+                            <FontAwesomeIcon icon={faArrowRightFromBracket} size={16} color="#6B7280" />
+                            <Text style={styles.logoutText}>Sign Out</Text>
+                        </TouchableOpacity>
+                    </View>
 
-            </Animated.View>
+                </Animated.View>
+            </ScrollView>
         </SafeAreaView>
     );
 };
@@ -143,11 +165,13 @@ const styles = StyleSheet.create({
         backgroundColor: '#0F172A',
     },
     inner: {
-        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: 28,
+        paddingHorizontal: 24,
         paddingVertical: 40,
+    },
+    scrollContent: {
+        flexGrow: 1,
     },
     iconContainer: {
         width: 90,
@@ -281,6 +305,30 @@ const styles = StyleSheet.create({
         color: '#6B7280',
         fontWeight: '700',
         fontSize: 15,
+    },
+    reuploadButton: {
+        backgroundColor: '#10B981',
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+        borderRadius: 12,
+        marginBottom: 32,
+        width: '100%',
+        alignItems: 'center',
+        shadowColor: '#10B981',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    reuploadButtonText: {
+        color: '#FFFFFF',
+        fontWeight: '800',
+        fontSize: 16,
+    },
+    actionsRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 10,
     },
 });
 

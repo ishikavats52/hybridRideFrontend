@@ -7,6 +7,7 @@ import {
     Dimensions,
     Alert,
     ActivityIndicator,
+    TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -22,27 +23,24 @@ const RideCompletedScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
     const [rating, setRating] = useState(0);
+    const [comment, setComment] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState<'GATEWAY' | 'CASH'>('CASH');
+    const [step, setStep] = useState<'PAYMENT' | 'RATING' | 'SUCCESS'>('PAYMENT');
     const { bookingId, driver, price } = route.params as any || {};
 
     const driverName = driver?.name || "Michael";
     const finalPrice = price || "13.00";
 
-    const handlePayAndSettle = async () => {
+    const handlePayment = async () => {
         if (submitting) return;
 
         setSubmitting(true);
         try {
-            // First submit rating if selected
-            if (rating > 0 && bookingId) {
-                await rateRide(bookingId, rating, "Great ride!");
-            }
-
             if (paymentMethod === 'GATEWAY') {
                 const options = {
                     description: `Payment for Ride ${bookingId || '123'}`,
-                    image: 'https://cdn-icons-png.flaticon.com/512/3063/3063822.png', // Or some logo
+                    image: 'https://cdn-icons-png.flaticon.com/512/3063/3063822.png',
                     currency: 'INR',
                     key: CONFIG.RAZORPAY_KEY_ID,
                     amount: Math.round(parseFloat(finalPrice) * 100),
@@ -57,21 +55,41 @@ const RideCompletedScreen = () => {
 
                 const data = await RazorpayCheckout.open(options);
                 console.log("Razorpay Success:", data.razorpay_payment_id);
-                Alert.alert("Success", `Payment Completed: ${data.razorpay_payment_id}`);
             } else {
-                Alert.alert("Success", "Cash payment confirmed with driver.");
+                // For cash, we just proceed
             }
 
-            // Mark booking as fully settled in backend
+            // Mark booking as paid in backend
             if (bookingId) {
                 await updateRideStatus(bookingId, 'completed');
             }
 
-            // Navigate away on success
-            navigation.navigate('PassengerHome' as never);
+            // Move to Rating Step
+            setStep('RATING');
         } catch (error: any) {
-            console.error('Settlement/Rating failed:', error);
-            Alert.alert("Payment Cancelled", error.description || "Could not complete settlement.");
+            console.error('Payment failed:', error);
+            Alert.alert("Payment Cancelled", error.description || "Could not complete payment.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleRateAndFinish = async () => {
+        if (submitting) return;
+        setSubmitting(true);
+        try {
+            if (rating > 0 && bookingId) {
+                await rateRide(bookingId, rating, comment || "Great ride!");
+            }
+            setStep('SUCCESS');
+            // Auto-redirect after 2 seconds
+            setTimeout(() => {
+                navigation.navigate('PassengerHome' as never);
+            }, 2000);
+        } catch (error) {
+            console.error('Rating failed:', error);
+            // Even if rating fails, we can go home
+            navigation.navigate('PassengerHome' as never);
         } finally {
             setSubmitting(false);
         }
@@ -84,94 +102,114 @@ const RideCompletedScreen = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.content}>
-                {/* Success Icon */}
-                <View style={styles.successIconContainer}>
-                    <FontAwesomeIcon icon={faCheck} size={32} color="#10B981" />
-                </View>
- 
-                {/* Title */}
-                <Text style={styles.title}>Arrival Confirmed</Text>
-                <Text style={styles.subtitle}>You have reached your destination safely.</Text>
-
-                {/* Payment Card */}
-                <View style={styles.paymentCard}>
-                    <Text style={styles.amountLabel}>TOTAL PAYABLE AMOUNT</Text>
-                    <Text style={styles.amountValue}>₹{finalPrice}</Text>
-
-                    <View style={styles.separator} />
-
-                    <View style={styles.statusRow}>
-                        <Text style={styles.statusLabel}>PAYMENT STATUS</Text>
-                        <View style={styles.pendingBadge}>
-                            <Text style={styles.pendingText}>• PENDING SETTLEMENT</Text>
+            {step === 'PAYMENT' && (
+                <View style={styles.fullWidth}>
+                    <View style={styles.content}>
+                        <View style={styles.successIconContainer}>
+                            <FontAwesomeIcon icon={faMoneyBill} size={32} color="#10B981" />
                         </View>
-                    </View>
-                </View>
+                        <Text style={styles.title}>Payment Required</Text>
+                        <Text style={styles.subtitle}>Please complete the payment to end the ride.</Text>
 
-                {/* Payment Selection */}
-                <View style={styles.paymentSelection}>
-                    <Text style={styles.sectionTitle}>SELECT PAYMENT METHOD</Text>
-
-                    <TouchableOpacity
-                        style={[styles.paymentOption, paymentMethod === 'CASH' && styles.paymentOptionSelected]}
-                        onPress={() => setPaymentMethod('CASH')}
-                    >
-                        <View style={styles.paymentOptionLeft}>
-                            <FontAwesomeIcon icon={faMoneyBill} size={20} color={paymentMethod === 'CASH' ? "#10B981" : "#6B7280"} />
-                            <Text style={[styles.paymentOptionText, paymentMethod === 'CASH' && styles.paymentOptionTextSelected]}>Cash</Text>
+                        <View style={styles.paymentCard}>
+                            <Text style={styles.amountLabel}>TOTAL PAYABLE AMOUNT</Text>
+                            <Text style={styles.amountValue}>₹{finalPrice}</Text>
                         </View>
-                        <FontAwesomeIcon icon={paymentMethod === 'CASH' ? faCircleCheck : faCircle} size={20} color={paymentMethod === 'CASH' ? "#10B981" : "#D1D5DB"} />
-                    </TouchableOpacity>
 
-                    <TouchableOpacity
-                        style={[styles.paymentOption, paymentMethod === 'GATEWAY' && styles.paymentOptionSelected]}
-                        onPress={() => setPaymentMethod('GATEWAY')}
-                    >
-                        <View style={styles.paymentOptionLeft}>
-                            <FontAwesomeIcon icon={faCreditCard} size={20} color={paymentMethod === 'GATEWAY' ? "#10B981" : "#6B7280"} />
-                            <Text style={[styles.paymentOptionText, paymentMethod === 'GATEWAY' && styles.paymentOptionTextSelected]}>Online Gateway</Text>
-                        </View>
-                        <FontAwesomeIcon icon={paymentMethod === 'GATEWAY' ? faCircleCheck : faCircle} size={20} color={paymentMethod === 'GATEWAY' ? "#10B981" : "#D1D5DB"} />
-                    </TouchableOpacity>
-                </View>
-
-                {/* Rating Section */}
-                <View style={styles.ratingSection}>
-                    <Text style={styles.ratingTitle}>RATE YOUR JOURNEY WITH {driverName.toUpperCase()}</Text>
-                    <View style={styles.starsRow}>
-                        {[1, 2, 3, 4, 5].map((star) => (
-                            <TouchableOpacity key={star} onPress={() => setRating(star)}>
-                                <FontAwesomeIcon
-                                    icon={faStar}
-                                    size={32}
-                                    color={star <= rating ? "#FBBF24" : "#E5E7EB"}
-                                    style={styles.starIcon}
-                                />
+                        <View style={styles.paymentSelection}>
+                            <Text style={styles.sectionTitle}>SELECT PAYMENT METHOD</Text>
+                            <TouchableOpacity
+                                style={[styles.paymentOption, paymentMethod === 'CASH' && styles.paymentOptionSelected]}
+                                onPress={() => setPaymentMethod('CASH')}
+                            >
+                                <View style={styles.paymentOptionLeft}>
+                                    <FontAwesomeIcon icon={faMoneyBill} size={20} color={paymentMethod === 'CASH' ? "#10B981" : "#6B7280"} />
+                                    <Text style={[styles.paymentOptionText, paymentMethod === 'CASH' && styles.paymentOptionTextSelected]}>Cash Payment</Text>
+                                </View>
+                                <FontAwesomeIcon icon={paymentMethod === 'CASH' ? faCircleCheck : faCircle} size={20} color={paymentMethod === 'CASH' ? "#10B981" : "#D1D5DB"} />
                             </TouchableOpacity>
-                        ))}
+
+                            <TouchableOpacity
+                                style={[styles.paymentOption, paymentMethod === 'GATEWAY' && styles.paymentOptionSelected]}
+                                onPress={() => setPaymentMethod('GATEWAY')}
+                            >
+                                <View style={styles.paymentOptionLeft}>
+                                    <FontAwesomeIcon icon={faCreditCard} size={20} color={paymentMethod === 'GATEWAY' ? "#10B981" : "#6B7280"} />
+                                    <Text style={[styles.paymentOptionText, paymentMethod === 'GATEWAY' && styles.paymentOptionTextSelected]}>Razorpay Online</Text>
+                                </View>
+                                <FontAwesomeIcon icon={paymentMethod === 'GATEWAY' ? faCircleCheck : faCircle} size={20} color={paymentMethod === 'GATEWAY' ? "#10B981" : "#D1D5DB"} />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                    <View style={styles.footer}>
+                        <TouchableOpacity
+                            style={[styles.payButton, submitting && { opacity: 0.7 }]}
+                            onPress={handlePayment}
+                            disabled={submitting}
+                        >
+                            {submitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.payButtonText}>{getPayButtonText()}</Text>}
+                        </TouchableOpacity>
                     </View>
                 </View>
-            </View>
+            )}
 
-            {/* Footer */}
-            <View style={styles.footer}>
-                <TouchableOpacity
-                    style={[styles.payButton, submitting && { opacity: 0.7 }]}
-                    onPress={handlePayAndSettle}
-                    disabled={submitting}
-                >
-                    {submitting
-                        ? <ActivityIndicator color="#FFFFFF" />
-                        : <Text style={styles.payButtonText}>{getPayButtonText()}</Text>
-                    }
-                </TouchableOpacity>
+            {step === 'RATING' && (
+                <View style={styles.fullWidth}>
+                    <View style={styles.content}>
+                        <View style={styles.successIconContainer}>
+                            <FontAwesomeIcon icon={faCheck} size={32} color="#10B981" />
+                        </View>
+                        <Text style={styles.title}>Payment Successful!</Text>
+                        <Text style={styles.subtitle}>How was your ride with {driverName}?</Text>
 
-                <View style={styles.securityNote}>
-                    <FontAwesomeIcon icon={faLock} size={12} color="#9CA3AF" style={{ marginRight: 6 }} />
-                    <Text style={styles.securityText}>PAYMENT REQUIRED FOR FUTURE BOOKINGS</Text>
+                        <View style={styles.ratingSection}>
+                            <View style={styles.starsRow}>
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                    <TouchableOpacity key={star} onPress={() => setRating(star)}>
+                                        <FontAwesomeIcon
+                                            icon={faStar}
+                                            size={48}
+                                            color={star <= rating ? "#FBBF24" : "#E5E7EB"}
+                                            style={styles.starIcon}
+                                        />
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                            <TextInput
+                                style={styles.commentInput}
+                                placeholder="Add a comment (optional)..."
+                                placeholderTextColor="#9CA3AF"
+                                value={comment}
+                                onChangeText={setComment}
+                                multiline
+                            />
+                        </View>
+                    </View>
+                    <View style={styles.footer}>
+                        <TouchableOpacity
+                            style={[styles.payButton, submitting && { opacity: 0.7 }]}
+                            onPress={handleRateAndFinish}
+                            disabled={submitting}
+                        >
+                            {submitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.payButtonText}>Submit Rating & Finish</Text>}
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => navigation.navigate('PassengerHome' as never)} style={styles.skipButton}>
+                            <Text style={styles.skipText}>Skip & Go Home</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
-            </View>
+            )}
+
+            {step === 'SUCCESS' && (
+                <View style={[styles.content, { justifyContent: 'center' }]}>
+                    <View style={styles.successIconContainer}>
+                        <FontAwesomeIcon icon={faCheck} size={40} color="#10B981" />
+                    </View>
+                    <Text style={styles.title}>All Set!</Text>
+                    <Text style={styles.subtitle}>Thank you for riding with Hybrid Ride.</Text>
+                    <ActivityIndicator color="#10B981" style={{ marginTop: 20 }} />
+                </View>
+            )}
         </SafeAreaView>
     );
 };
@@ -186,6 +224,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingTop: 40,
+    },
+    fullWidth: {
+        width: '100%',
+        flex: 1,
     },
     successIconContainer: {
         width: 80,
@@ -346,6 +388,27 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#9CA3AF',
         letterSpacing: 0.5,
+    },
+    commentInput: {
+        width: width - 40,
+        backgroundColor: '#F3F4F6',
+        borderRadius: 12,
+        padding: 16,
+        marginTop: 24,
+        fontSize: 14,
+        color: '#111827',
+        minHeight: 100,
+        textAlignVertical: 'top',
+    },
+    skipButton: {
+        marginTop: 10,
+        alignItems: 'center',
+        paddingVertical: 10,
+    },
+    skipText: {
+        color: '#9CA3AF',
+        fontSize: 14,
+        fontWeight: '600',
     },
 });
 
