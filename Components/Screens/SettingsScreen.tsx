@@ -18,10 +18,12 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import BottomNavBar from '../Navigation/BottomNavBar';
 import DriverBottomNavBar from '../Navigation/DriverBottomNavBar';
+import { useAuth } from '../Context/AuthContext';
 
 const SettingsScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
+    const { user } = useAuth();
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
     const toggleSwitch = () => setNotificationsEnabled(previousState => !previousState);
@@ -90,16 +92,16 @@ const SettingsScreen = () => {
                     </View>
 
                     {/* Log Out */}
-                    <TouchableOpacity style={styles.logoutButton}>
+                    {/* <TouchableOpacity style={styles.logoutButton}>
                         <Text style={styles.logoutText}>Log Out</Text>
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
 
                     <Text style={styles.versionText}>Version 2.4.0 (Build 390)</Text>
 
                 </ScrollView>
             </SafeAreaView>
 
-            {mode === 'driver' ? (
+            {mode === 'driver' || user?.role === 'driver' ? (
                 <DriverBottomNavBar activeTab="PROFILE" />
             ) : (
                 <BottomNavBar activeTab="PROFILE" />

@@ -79,8 +79,8 @@ export const poolService = {
         return response.data; // { success: boolean, data: PoolRide }
     },
 
-    bookSeat: async (rideId: string, seats: number = 1) => {
-        const response = await apiClient.post(`/pools/${rideId}/book`, { seats });
+    bookSeat: async (rideId: string, seats: number = 1, paymentMethod: string = 'cash') => {
+        const response = await apiClient.post(`/pools/${rideId}/book`, { seats, paymentMethod });
         return response.data; // { success: boolean, data: PoolRide }
     },
 

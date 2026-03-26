@@ -11,9 +11,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft, faHandPointUp } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faHandPointUp, faWallet, faMoneyBillWave, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
 import poolService from '../../Services/poolService';
 import { Alert } from 'react-native';
+import { useAuth } from '../Context/AuthContext';
 
 
 
@@ -22,31 +23,45 @@ const { width } = Dimensions.get('window');
 const SeatPreferenceScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
-    const { rideData, fromLocation, toLocation, date, maxSeats, pickupCoords, dropoffCoords, distance, duration } = (route.params as any) || {};
+    const { rideData, fromLocation, toLocation, date, maxSeats, pickupCoords, dropoffCoords, distance, duration, initialSeats, vehicleType } = (route.params as any) || {};
 
-    const [passengers, setPassengers] = useState(1);
+
+    const [passengers, setPassengers] = useState<number>(initialSeats || 1);
+
+
     // Granular seat distribution state
     const [seatDistribution, setSeatDistribution] = useState({ FRONT: 0, MIDDLE: 0, BACK: 0 });
     const [showReviewSheet, setShowReviewSheet] = useState(false);
+    const [paymentMethod, setPaymentMethod] = useState<'cash' | 'wallet'>('cash');
+    const { user } = useAuth();
 
     const ROW_LIMITS = {
-        FRONT: 1,
-        MIDDLE: 3,
-        BACK: (maxSeats && maxSeats <= 4) ? 0 : 3
+        FRONT: (vehicleType === 'BIKE' || vehicleType === 'AUTO') ? 0 : 1,
+        MIDDLE: (vehicleType === 'BIKE') ? 0 : (vehicleType === 'AUTO' ? 3 : (vehicleType === 'TRAVELER' ? 10 : 3)),
+        BACK: (vehicleType === 'BIKE' || vehicleType === 'AUTO' || (maxSeats && maxSeats <= 4)) ? 0 : (vehicleType === 'TRAVELER' ? 15 : 3)
     };
+
 
     const totalAllocated = Object.values(seatDistribution).reduce((a, b) => a + b, 0);
 
     const handleIncrement = () => {
-        if (passengers < 4) { // Assuming max 4 passengers for now
-            setPassengers(prev => prev + 1);
+        let limit = 4;
+        if (vehicleType === 'BIKE') limit = 1;
+        else if (vehicleType === 'AUTO') limit = 3;
+        else if (vehicleType === 'TRAVELER') limit = maxSeats || 15;
+        else limit = maxSeats || 4; // Use maxSeats from ride if available
+
+        if (passengers < limit) {
+            setPassengers((prev: number) => prev + 1);
         }
     };
 
+
     const handleDecrement = () => {
         if (passengers > 1) {
-            setPassengers(prev => {
+            setPassengers((prev: number) => {
                 const newCount = prev - 1;
+
                 // If we reduce passengers below allocated, we must reset or reduce allocation
                 if (totalAllocated > newCount) {
                     setSeatDistribution({ FRONT: 0, MIDDLE: 0, BACK: 0 });
@@ -82,7 +97,16 @@ const SeatPreferenceScreen = () => {
         // If this is an backend-connected trip
         if (rideData?.tripId) {
             try {
-                const response = await poolService.bookSeat(rideData.tripId, passengers);
+                // Check wallet balance if wallet is selected
+                if (paymentMethod === 'wallet') {
+                    const price = parseFloat(calculatedPrice);
+                    if ((user?.walletBalance || 0) < price) {
+                        Alert.alert('Insufficient Balance', 'You don\'t have enough balance in your Sanchari Wallet. Please top up or choose Cash.');
+                        return;
+                    }
+                }
+
+                const response = await poolService.bookSeat(rideData.tripId, passengers, paymentMethod);
                 if (!response.success) {
                     Alert.alert('Booking Failed', response.message || 'Could not book seat');
                     return; // Halt navigation if booking fails
@@ -108,7 +132,7 @@ const SeatPreferenceScreen = () => {
                 price: calculatedPrice
             };
 
-            navigation.navigate('PoolingSuccess' as any, {
+            navigation.navigate('PoolingSuccess' as never, {
                 driver: driverData,
                 rideData: { ...rideData, ...ride }, // Merge full data
                 price: calculatedPrice,
@@ -121,7 +145,7 @@ const SeatPreferenceScreen = () => {
                 date
             } as any);
         } else {
-            navigation.navigate('TripDetails' as any, {
+            navigation.navigate('TripDetails' as never, {
                 rideData,
                 fromLocation,
                 toLocation,
@@ -188,87 +212,101 @@ const SeatPreferenceScreen = () => {
                     {/* Vehicle Interior Visual */}
                     <View style={styles.vehicleContainer}>
                         <View style={styles.vehicleInterior}>
-                            <Text style={styles.interiorLabel}>VEHICLE INTERIOR</Text>
+                            <Text style={styles.interiorLabel}>VEHICLE INTERIOR ({vehicleType || 'CAR'})</Text>
 
-                            <View style={styles.interiorGrid}>
-                                {/* Driver Row */}
-                                <View style={styles.rowContainer}>
-                                    <View style={[styles.seat, styles.seatOccupied]}>
-                                        <Text style={styles.seatIcon}>§</Text>
+                            {vehicleType === 'BIKE' ? (
+                                <View style={{ padding: 40, alignItems: 'center' }}>
+                                    <View style={[styles.seat, styles.seatOccupied, { width: 80, height: 100, marginBottom: 20 }]}>
+                                        <Text style={{ color: '#6B7280', fontSize: 24 }}>§</Text>
                                     </View>
-                                    <View style={[styles.seat, styles.seatDriver]}>
-                                        <Text style={styles.seatTextDriver}>DRIVER</Text>
+                                    <Text style={{ color: '#9CA3AF', textAlign: 'center', fontWeight: '700' }}>
+                                        {vehicleType === 'BIKE' ? 'Bike' : 'Auto'} selection confirmed.
+                                    </Text>
+                                    <View style={[styles.seat, styles.selectedRowBlock, { width: 80, height: 100, marginTop: 20, borderColor: '#14B8A6', borderWidth: 2 }]}>
+                                        <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800' }}>YOU</Text>
                                     </View>
                                 </View>
-
-                                {/* Front Row */}
-                                <View style={[styles.rowBlock, seatDistribution.FRONT > 0 && styles.selectedRowBlock]}>
-                                    <View style={{ alignItems: 'center' }}>
-                                        <Text style={[styles.rowText, seatDistribution.FRONT > 0 && styles.selectedRowText]}>FRONT ROW</Text>
-                                        <Text style={[styles.rowSubText, seatDistribution.FRONT > 0 && styles.selectedRowSubText]}>
-                                            ₹{(rideData?.seatPricing?.front || rideData?.pricePerSeat || rideData?.price || 15).toFixed(0)}/seat • Only 1
-                                        </Text>
-                                    </View>
-                                    <View style={styles.seatControls}>
-                                        <TouchableOpacity onPress={() => handleDecrementRow('FRONT')} style={styles.seatControlButton}>
-                                            <Text style={styles.seatControlText}>-</Text>
-                                        </TouchableOpacity>
-                                        <Text style={[styles.seatControlValue, seatDistribution.FRONT > 0 && { color: '#FFFFFF' }]}>{seatDistribution.FRONT}</Text>
-                                        <TouchableOpacity onPress={() => handleIncrementRow('FRONT')} style={styles.seatControlButton}>
-                                            <Text style={styles.seatControlText}>+</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-
-                                {/* Middle Row */}
-                                <View style={[styles.rowBlock, seatDistribution.MIDDLE > 0 && styles.selectedRowBlock]}>
-                                    <View style={{ alignItems: 'center' }}>
-                                        <Text style={[styles.rowText, seatDistribution.MIDDLE > 0 && styles.selectedRowText]}>MIDDLE ROW</Text>
-                                        <Text style={[styles.rowSubText, seatDistribution.MIDDLE > 0 && styles.selectedRowSubText]}>
-                                            ₹{(rideData?.seatPricing?.middle || rideData?.pricePerSeat || rideData?.price || 12).toFixed(0)}/seat
-                                        </Text>
-                                    </View>
-                                    <View style={styles.seatControls}>
-                                        <TouchableOpacity onPress={() => handleDecrementRow('MIDDLE')} style={styles.seatControlButton}>
-                                            <Text style={styles.seatControlText}>-</Text>
-                                        </TouchableOpacity>
-                                        <Text style={[styles.seatControlValue, seatDistribution.MIDDLE > 0 && { color: '#FFFFFF' }]}>{seatDistribution.MIDDLE}</Text>
-                                        <TouchableOpacity onPress={() => handleIncrementRow('MIDDLE')} style={styles.seatControlButton}>
-                                            <Text style={styles.seatControlText}>+</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-
-                                {/* Back Row */}
-                                <View
-                                    style={[
-                                        styles.rowBlock,
-                                        seatDistribution.BACK > 0 && styles.selectedRowBlock,
-                                        maxSeats && maxSeats <= 4 && { opacity: 0.5 }
-                                    ]}
-                                >
-                                    <View style={{ alignItems: 'center' }}>
-                                        <Text style={[styles.rowText, seatDistribution.BACK > 0 && styles.selectedRowText]}>BACK ROW</Text>
-                                        <Text style={[styles.rowSubText, seatDistribution.BACK > 0 && styles.selectedRowSubText]}>
-                                            ₹{(rideData?.seatPricing?.back || rideData?.pricePerSeat || rideData?.price || 10).toFixed(0)}/seat
-                                        </Text>
-                                    </View>
-                                    <View style={styles.seatControls}>
-                                        <TouchableOpacity onPress={() => handleDecrementRow('BACK')} disabled={maxSeats && maxSeats <= 4} style={styles.seatControlButton}>
-                                            <Text style={styles.seatControlText}>-</Text>
-                                        </TouchableOpacity>
-                                        <Text style={[styles.seatControlValue, seatDistribution.BACK > 0 && { color: '#FFFFFF' }]}>{seatDistribution.BACK}</Text>
-                                        <TouchableOpacity onPress={() => handleIncrementRow('BACK')} disabled={maxSeats && maxSeats <= 4} style={styles.seatControlButton}>
-                                            <Text style={styles.seatControlText}>+</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                    {maxSeats && maxSeats <= 4 && (
-                                        <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
-                                            <Text style={{ color: '#EF4444', fontWeight: '800', fontSize: 10 }}>UNAVAILABLE</Text>
+                            ) : (
+                                <View style={styles.interiorGrid}>
+                                    {/* Driver Row */}
+                                    <View style={styles.rowContainer}>
+                                        <View style={[styles.seat, styles.seatOccupied]}>
+                                            <Text style={styles.seatIcon}>§</Text>
                                         </View>
-                                    )}
+                                        <View style={[styles.seat, styles.seatDriver]}>
+                                            <Text style={styles.seatTextDriver}>DRIVER</Text>
+                                        </View>
+                                    </View>
+
+                                    {/* Front Row */}
+                                    <View style={[styles.rowBlock, seatDistribution.FRONT > 0 && styles.selectedRowBlock]}>
+                                        <View style={{ alignItems: 'center' }}>
+                                            <Text style={[styles.rowText, seatDistribution.FRONT > 0 && styles.selectedRowText]}>FRONT ROW</Text>
+                                            <Text style={[styles.rowSubText, seatDistribution.FRONT > 0 && styles.selectedRowSubText]}>
+                                                ₹{(rideData?.seatPricing?.front || rideData?.pricePerSeat || rideData?.price || 15).toFixed(0)}/seat • Only 1
+                                            </Text>
+                                        </View>
+                                        <View style={styles.seatControls}>
+                                            <TouchableOpacity onPress={() => handleDecrementRow('FRONT')} style={styles.seatControlButton}>
+                                                <Text style={styles.seatControlText}>-</Text>
+                                            </TouchableOpacity>
+                                            <Text style={[styles.seatControlValue, seatDistribution.FRONT > 0 && { color: '#FFFFFF' }]}>{seatDistribution.FRONT}</Text>
+                                            <TouchableOpacity onPress={() => handleIncrementRow('FRONT')} style={styles.seatControlButton}>
+                                                <Text style={styles.seatControlText}>+</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+
+                                    {/* Middle Row */}
+                                    <View style={[styles.rowBlock, seatDistribution.MIDDLE > 0 && styles.selectedRowBlock]}>
+                                        <View style={{ alignItems: 'center' }}>
+                                            <Text style={[styles.rowText, seatDistribution.MIDDLE > 0 && styles.selectedRowText]}>MIDDLE ROW</Text>
+                                            <Text style={[styles.rowSubText, seatDistribution.MIDDLE > 0 && styles.selectedRowSubText]}>
+                                                ₹{(rideData?.seatPricing?.middle || rideData?.pricePerSeat || rideData?.price || 12).toFixed(0)}/seat
+                                            </Text>
+                                        </View>
+                                        <View style={styles.seatControls}>
+                                            <TouchableOpacity onPress={() => handleDecrementRow('MIDDLE')} style={styles.seatControlButton}>
+                                                <Text style={styles.seatControlText}>-</Text>
+                                            </TouchableOpacity>
+                                            <Text style={[styles.seatControlValue, seatDistribution.MIDDLE > 0 && { color: '#FFFFFF' }]}>{seatDistribution.MIDDLE}</Text>
+                                            <TouchableOpacity onPress={() => handleIncrementRow('MIDDLE')} style={styles.seatControlButton}>
+                                                <Text style={styles.seatControlText}>+</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+
+                                    {/* Back Row */}
+                                    <View
+                                        style={[
+                                            styles.rowBlock,
+                                            seatDistribution.BACK > 0 && styles.selectedRowBlock,
+                                            (vehicleType !== 'TRAVELER' && maxSeats && maxSeats <= 4) && { opacity: 0.5 }
+                                        ]}
+                                    >
+                                        <View style={{ alignItems: 'center' }}>
+                                            <Text style={[styles.rowText, seatDistribution.BACK > 0 && styles.selectedRowText]}>BACK ROW</Text>
+                                            <Text style={[styles.rowSubText, seatDistribution.BACK > 0 && styles.selectedRowSubText]}>
+                                                ₹{(rideData?.seatPricing?.back || rideData?.pricePerSeat || rideData?.price || 10).toFixed(0)}/seat
+                                            </Text>
+                                        </View>
+                                        <View style={styles.seatControls}>
+                                            <TouchableOpacity onPress={() => handleDecrementRow('BACK')} disabled={vehicleType !== 'TRAVELER' && maxSeats && maxSeats <= 4} style={styles.seatControlButton}>
+                                                <Text style={styles.seatControlText}>-</Text>
+                                            </TouchableOpacity>
+                                            <Text style={[styles.seatControlValue, seatDistribution.BACK > 0 && { color: '#FFFFFF' }]}>{seatDistribution.BACK}</Text>
+                                            <TouchableOpacity onPress={() => handleIncrementRow('BACK')} disabled={vehicleType !== 'TRAVELER' && maxSeats && maxSeats <= 4} style={styles.seatControlButton}>
+                                                <Text style={styles.seatControlText}>+</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                        {(vehicleType !== 'TRAVELER' && maxSeats && maxSeats <= 4) && (
+                                            <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
+                                                <Text style={{ color: '#EF4444', fontWeight: '800', fontSize: 10 }}>UNAVAILABLE</Text>
+                                            </View>
+                                        )}
+                                    </View>
                                 </View>
-                            </View>
+                            )}
 
                             {/* Legend - Moved below seats but above helper */}
                             <View style={styles.legendContainer}>
@@ -289,7 +327,14 @@ const SeatPreferenceScreen = () => {
                             {/* Helper Text - Moved inside vehicle container */}
                             <View style={styles.helperContainer}>
                                 <FontAwesomeIcon icon={faHandPointUp} size={16} color="#D97706" style={{ marginRight: 8 }} />
-                                <Text style={styles.helperText}>Allocated {totalAllocated} of {passengers} seats</Text>
+                                <Text style={styles.helperText}>
+                                    {vehicleType === 'BIKE' 
+                                        ? "Bike confirmed for 1 passenger"
+                                        : (vehicleType === 'AUTO' && totalAllocated === passengers)
+                                            ? "Auto seats selected"
+                                            : `Allocated ${totalAllocated} of ${passengers} seats`
+                                    }
+                                </Text>
                             </View>
 
                         </View>
@@ -305,12 +350,14 @@ const SeatPreferenceScreen = () => {
                     <Text style={styles.totalPrice}>₹{getPrice()}</Text>
                 </View>
                 <TouchableOpacity
-                    style={[styles.confirmButton, totalAllocated === passengers ? styles.confirmButtonActive : styles.confirmButtonDisabled]}
-                    disabled={totalAllocated !== passengers}
+                    style={[styles.confirmButton, (totalAllocated === passengers || vehicleType === 'BIKE' || vehicleType === 'AUTO') ? styles.confirmButtonActive : styles.confirmButtonDisabled]}
+                    disabled={vehicleType === 'BIKE' || vehicleType === 'AUTO' ? passengers < 1 : totalAllocated !== passengers}
                     onPress={handleConfirmSelection}
                 >
-                    <Text style={[styles.confirmButtonText, totalAllocated === passengers ? styles.confirmButtonTextActive : styles.confirmButtonTextDisabled]}>
-                        {totalAllocated === passengers ? 'Confirm Selection' : `Select ${passengers - totalAllocated} more`}
+                    <Text style={[styles.confirmButtonText, (totalAllocated === passengers || vehicleType === 'BIKE' || vehicleType === 'AUTO') ? styles.confirmButtonTextActive : styles.confirmButtonTextDisabled]}>
+                        {vehicleType === 'BIKE' || vehicleType === 'AUTO'
+                            ? `Confirm ${vehicleType === 'BIKE' ? 'Bike' : 'Auto'} Booking`
+                            : (totalAllocated === passengers ? 'Confirm Selection' : `Select ${passengers - totalAllocated} more`)}
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -348,6 +395,30 @@ const SeatPreferenceScreen = () => {
                                 {seatDistribution.MIDDLE > 0 && <Text style={styles.reviewValueTeal}>Middle: {seatDistribution.MIDDLE}</Text>}
                                 {seatDistribution.BACK > 0 && <Text style={styles.reviewValueTeal}>Back: {seatDistribution.BACK}</Text>}
                             </View>
+                        </View>
+
+                        <Text style={[styles.reviewLabel, { marginBottom: 16 }]}>PAYMENT METHOD</Text>
+                        <View style={styles.paymentSelector}>
+                            <TouchableOpacity 
+                                style={[styles.paymentOption, paymentMethod === 'cash' && styles.paymentOptionActive]} 
+                                onPress={() => setPaymentMethod('cash')}
+                            >
+                                <FontAwesomeIcon icon={faMoneyBillWave} size={16} color={paymentMethod === 'cash' ? '#FFFFFF' : '#6B7280'} />
+                                <Text style={[styles.paymentText, paymentMethod === 'cash' && styles.paymentTextActive]}>Cash</Text>
+                                {paymentMethod === 'cash' && <FontAwesomeIcon icon={faCheckCircle} size={14} color="#FFFFFF" style={{ marginLeft: 'auto' }} />}
+                            </TouchableOpacity>
+
+                            <TouchableOpacity 
+                                style={[styles.paymentOption, paymentMethod === 'wallet' && styles.paymentOptionActive]} 
+                                onPress={() => setPaymentMethod('wallet')}
+                            >
+                                <FontAwesomeIcon icon={faWallet} size={16} color={paymentMethod === 'wallet' ? '#FFFFFF' : '#6B7280'} />
+                                <View style={{ marginLeft: 12 }}>
+                                    <Text style={[styles.paymentText, paymentMethod === 'wallet' && styles.paymentTextActive]}>Sanchari Cash</Text>
+                                    <Text style={[styles.balanceText, paymentMethod === 'wallet' && styles.balanceTextActive]}>Bal: ₹{user?.walletBalance || 0}</Text>
+                                </View>
+                                {paymentMethod === 'wallet' && <FontAwesomeIcon icon={faCheckCircle} size={14} color="#FFFFFF" style={{ marginLeft: 'auto' }} />}
+                            </TouchableOpacity>
                         </View>
 
                         <View style={[styles.reviewRow, styles.reviewTotalRow]}>
@@ -742,6 +813,40 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '800',
         color: '#FFFFFF',
+    },
+    paymentSelector: {
+        gap: 12,
+        marginBottom: 24,
+    },
+    paymentOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        backgroundColor: '#F9FAFB',
+    },
+    paymentOptionActive: {
+        backgroundColor: '#111827',
+        borderColor: '#111827',
+    },
+    paymentText: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#374151',
+        marginLeft: 12,
+    },
+    paymentTextActive: {
+        color: '#FFFFFF',
+    },
+    balanceText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: '#6B7280',
+    },
+    balanceTextActive: {
+        color: '#9CA3AF',
     },
 });
 

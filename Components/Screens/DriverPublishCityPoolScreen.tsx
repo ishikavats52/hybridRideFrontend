@@ -42,6 +42,23 @@ const DriverPublishCityPoolScreen = () => {
     const [destination, setDestination] = useState('');
     const originRef = React.useRef<any>(null);
 
+    // Vehicle Context
+    const vehicleType = user?.driverDetails?.vehicle?.type || 'CAR';
+    const maxCapacity = (user?.driverDetails?.vehicle as any)?.seatingCapacity || 4;
+
+    // Initial counts based on vehicleType
+    React.useEffect(() => {
+        if (vehicleType === 'BIKE') {
+            setFrontSeatCount(1);
+            setMiddleRowCount(0);
+            setBackRowCount(0);
+        } else if (vehicleType === 'AUTO') {
+            setFrontSeatCount(0);
+            setMiddleRowCount(3);
+            setBackRowCount(0);
+        }
+    }, [vehicleType]);
+
     // Toggle
     const [isWomenOnly, setIsWomenOnly] = useState(false);
 
@@ -58,8 +75,13 @@ const DriverPublishCityPoolScreen = () => {
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [selectedTime, setSelectedTime] = useState('hh:mm');
 
-    const increment = (setter: React.Dispatch<React.SetStateAction<number>>, value: number, max: number) => {
-        if (value < max) setter(value + 1);
+    const increment = (setter: React.Dispatch<React.SetStateAction<number>>, value: number, rowMax: number) => {
+        const currentTotal = frontSeatCount + middleRowCount + backRowCount;
+        if (currentTotal < maxCapacity && value < rowMax) {
+            setter(value + 1);
+        } else if (currentTotal >= maxCapacity) {
+            Alert.alert("Capacity Reached", `Your vehicle can only take ${maxCapacity} passengers.`);
+        }
     };
 
     const decrement = (setter: React.Dispatch<React.SetStateAction<number>>, value: number) => {
@@ -225,95 +247,123 @@ const DriverPublishCityPoolScreen = () => {
                         </View>
                     </View>
 
-                    {/* Front Seat */}
-                    <View style={styles.seatRow}>
-                        <View style={styles.seatIcon}>
-                            <FontAwesomeIcon icon={faChair} size={20} color="#111827" />
+                    {/* Dynamic Seat Sections based on VehicleType */}
+                    {vehicleType === 'BIKE' ? (
+                        <View style={styles.seatRow}>
+                            <View style={styles.seatIcon}>
+                                <FontAwesomeIcon icon={faChair} size={20} color="#111827" />
+                            </View>
+                            <View style={styles.seatInfo}>
+                                <Text style={styles.seatTitle}>Single Passenger</Text>
+                                <Text style={styles.seatLimit}>FIXED 1</Text>
+                            </View>
+                            <View style={styles.priceInputRow}>
+                                <Text style={styles.currency}>₹</Text>
+                                <TextInput
+                                    style={[styles.priceValue, { minWidth: 60, height: 40, paddingHorizontal: 10, padding: 0 }]}
+                                    value={frontPrice}
+                                    onChangeText={setFrontPrice}
+                                    keyboardType="numeric"
+                                />
+                            </View>
                         </View>
-                        <View style={styles.seatInfo}>
-                            <Text style={styles.seatTitle}>Front Seat</Text>
-                            <Text style={styles.seatLimit}>MAX 1</Text>
-                        </View>
-                        <View style={styles.counter}>
-                            <TouchableOpacity onPress={() => decrement(setFrontSeatCount, frontSeatCount)} style={styles.counterBtn}>
-                                <Text style={styles.counterText}>-</Text>
-                            </TouchableOpacity>
-                            <Text style={styles.countValue}>{frontSeatCount}</Text>
-                            <TouchableOpacity onPress={() => increment(setFrontSeatCount, frontSeatCount, 1)} style={styles.counterBtn}>
-                                <Text style={styles.counterText}>+</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                    <View style={styles.priceInputRow}>
-                        <Text style={styles.currency}>₹</Text>
-                        <TextInput
-                            style={[styles.priceValue, { minWidth: 60, height: 40, paddingHorizontal: 10, padding: 0 }]}
-                            value={frontPrice}
-                            onChangeText={setFrontPrice}
-                            keyboardType="numeric"
-                        />
-                    </View>
+                    ) : (
+                        <>
+                            {/* Front Seat */}
+                            <View style={styles.seatRow}>
+                                <View style={styles.seatIcon}>
+                                    <FontAwesomeIcon icon={faChair} size={20} color="#111827" />
+                                </View>
+                                <View style={styles.seatInfo}>
+                                    <Text style={styles.seatTitle}>{vehicleType === 'AUTO' ? 'Driver Only Front' : 'Front Seat'}</Text>
+                                    <Text style={styles.seatLimit}>{vehicleType === 'AUTO' ? 'UNAVAILABLE' : 'MAX 1'}</Text>
+                                </View>
+                                <View style={styles.counter}>
+                                    <TouchableOpacity onPress={() => decrement(setFrontSeatCount, frontSeatCount)} disabled={vehicleType === 'AUTO'} style={[styles.counterBtn, vehicleType === 'AUTO' && { opacity: 0.5 }]}>
+                                        <Text style={styles.counterText}>-</Text>
+                                    </TouchableOpacity>
+                                    <Text style={styles.countValue}>{frontSeatCount}</Text>
+                                    <TouchableOpacity onPress={() => increment(setFrontSeatCount, frontSeatCount, 1)} disabled={vehicleType === 'AUTO'} style={[styles.counterBtn, vehicleType === 'AUTO' && { opacity: 0.5 }]}>
+                                        <Text style={styles.counterText}>+</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                            <View style={styles.priceInputRow}>
+                                <Text style={styles.currency}>₹</Text>
+                                <TextInput
+                                    style={[styles.priceValue, { minWidth: 60, height: 40, paddingHorizontal: 10, padding: 0 }]}
+                                    value={frontPrice}
+                                    onChangeText={setFrontPrice}
+                                    keyboardType="numeric"
+                                />
+                            </View>
 
-                    {/* Middle Row */}
-                    <View style={styles.divider} />
-                    <View style={styles.seatRow}>
-                        <View style={styles.seatIcon}>
-                            <FontAwesomeIcon icon={faUserFriends} size={20} color="#EF4444" />
-                        </View>
-                        <View style={styles.seatInfo}>
-                            <Text style={styles.seatTitle}>Middle Row</Text>
-                            <Text style={styles.seatLimit}>MAX 3</Text>
-                        </View>
-                        <View style={styles.counter}>
-                            <TouchableOpacity onPress={() => decrement(setMiddleRowCount, middleRowCount)} style={styles.counterBtn}>
-                                <Text style={styles.counterText}>-</Text>
-                            </TouchableOpacity>
-                            <Text style={styles.countValue}>{middleRowCount}</Text>
-                            <TouchableOpacity onPress={() => increment(setMiddleRowCount, middleRowCount, 3)} style={styles.counterBtn}>
-                                <Text style={styles.counterText}>+</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                    <View style={styles.priceInputRow}>
-                        <Text style={styles.currency}>₹</Text>
-                        <TextInput
-                            style={[styles.priceValue, { minWidth: 60, height: 40, paddingHorizontal: 10, padding: 0 }]}
-                            value={middlePrice}
-                            onChangeText={setMiddlePrice}
-                            keyboardType="numeric"
-                        />
-                    </View>
+                            {/* Middle Row */}
+                            <View style={styles.divider} />
+                            <View style={styles.seatRow}>
+                                <View style={styles.seatIcon}>
+                                    <FontAwesomeIcon icon={faUserFriends} size={20} color="#EF4444" />
+                                </View>
+                                <View style={styles.seatInfo}>
+                                    <Text style={styles.seatTitle}>{vehicleType === 'AUTO' ? 'Rear Bench' : 'Middle Row'}</Text>
+                                    <Text style={styles.seatLimit}>MAX {vehicleType === 'AUTO' ? 3 : ((vehicleType as any) === 'TRAVELER' ? 10 : 3)}</Text>
+                                </View>
+                                <View style={styles.counter}>
+                                    <TouchableOpacity onPress={() => decrement(setMiddleRowCount, middleRowCount)} style={styles.counterBtn}>
+                                        <Text style={styles.counterText}>-</Text>
+                                    </TouchableOpacity>
+                                    <Text style={styles.countValue}>{middleRowCount}</Text>
+                                    <TouchableOpacity onPress={() => increment(setMiddleRowCount, middleRowCount, (vehicleType === 'AUTO' ? 3 : ((vehicleType as any) === 'TRAVELER' ? 10 : 3)))} style={styles.counterBtn}>
+                                        <Text style={styles.counterText}>+</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                            <View style={styles.priceInputRow}>
+                                <Text style={styles.currency}>₹</Text>
+                                <TextInput
+                                    style={[styles.priceValue, { minWidth: 60, height: 40, paddingHorizontal: 10, padding: 0 }]}
+                                    value={middlePrice}
+                                    onChangeText={setMiddlePrice}
+                                    keyboardType="numeric"
+                                />
+                            </View>
 
-                    {/* Back Row */}
-                    <View style={styles.divider} />
-                    <View style={styles.seatRow}>
-                        <View style={styles.seatIcon}>
-                            <FontAwesomeIcon icon={faSuitcase} size={20} color="#D97706" />
-                        </View>
-                        <View style={styles.seatInfo}>
-                            <Text style={styles.seatTitle}>Back Row</Text>
-                            <Text style={styles.seatLimit}>MAX 3</Text>
-                        </View>
-                        <View style={styles.counter}>
-                            <TouchableOpacity onPress={() => decrement(setBackRowCount, backRowCount)} style={styles.counterBtn}>
-                                <Text style={styles.counterText}>-</Text>
-                            </TouchableOpacity>
-                            <Text style={styles.countValue}>{backRowCount}</Text>
-                            <TouchableOpacity onPress={() => increment(setBackRowCount, backRowCount, 3)} style={styles.counterBtn}>
-                                <Text style={styles.counterText}>+</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                    <View style={styles.priceInputRow}>
-                        <Text style={styles.currency}>₹</Text>
-                        <TextInput
-                            style={[styles.priceValue, { minWidth: 60, height: 40, paddingHorizontal: 10, padding: 0 }]}
-                            value={backPrice}
-                            onChangeText={setBackPrice}
-                            keyboardType="numeric"
-                        />
-                    </View>
-
+                            {/* Back Row - Hidden for AUTO */}
+                            {maxCapacity > 4 && vehicleType !== 'AUTO' && (
+                                <>
+                                    {/* Back Row */}
+                                    <View style={styles.divider} />
+                                    <View style={styles.seatRow}>
+                                        <View style={styles.seatIcon}>
+                                            <FontAwesomeIcon icon={faSuitcase} size={20} color="#D97706" />
+                                        </View>
+                                        <View style={styles.seatInfo}>
+                                            <Text style={styles.seatTitle}>Back Row</Text>
+                                            <Text style={styles.seatLimit}>MAX {maxCapacity - 4}</Text>
+                                        </View>
+                                        <View style={styles.counter}>
+                                            <TouchableOpacity onPress={() => decrement(setBackRowCount, backRowCount)} style={styles.counterBtn}>
+                                                <Text style={styles.counterText}>-</Text>
+                                            </TouchableOpacity>
+                                            <Text style={styles.countValue}>{backRowCount}</Text>
+                                            <TouchableOpacity onPress={() => increment(setBackRowCount, backRowCount, (vehicleType as any) === 'TRAVELER' ? 15 : 3)} style={styles.counterBtn}>
+                                                <Text style={styles.counterText}>+</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                    <View style={styles.priceInputRow}>
+                                        <Text style={styles.currency}>₹</Text>
+                                        <TextInput
+                                            style={[styles.priceValue, { minWidth: 60, height: 40, paddingHorizontal: 10, padding: 0 }]}
+                                            value={backPrice}
+                                            onChangeText={setBackPrice}
+                                            keyboardType="numeric"
+                                        />
+                                    </View>
+                                </>
+                            )}
+                        </>
+                    )}
                 </View>
 
                 {/* Women Only */}
@@ -368,7 +418,8 @@ const DriverPublishCityPoolScreen = () => {
                                 destinationName: destination,
                                 scheduledTime: isoDateString,
                                 vehicle: user?.driverDetails?.vehicle?.model || "City Pool Vehicle",
-                                totalSeats: frontSeatCount + middleRowCount + backRowCount,
+                                vehicleType: vehicleType,
+                                totalSeats: vehicleType === 'BIKE' ? 1 : (vehicleType === 'AUTO' ? 3 : (frontSeatCount + middleRowCount + backRowCount)),
                                 pricePerSeat: parseFloat(frontPrice), // Fallback
                                 seatPricing: { // The new granular schema
                                     front: parseFloat(frontPrice) || 0,

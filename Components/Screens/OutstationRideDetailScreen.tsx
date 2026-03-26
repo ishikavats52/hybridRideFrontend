@@ -27,7 +27,8 @@ const { width } = Dimensions.get('window');
 const OutstationRideDetailScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
-    const { rideData, mode, fromLocation, toLocation, date } = route.params as any || {};
+    const { rideData, mode, fromLocation, toLocation, date, seats } = route.params as any || {};
+
 
     const isPooling = mode === 'POOLING';
     const ride = rideData?.fullData || {};
@@ -157,7 +158,8 @@ const OutstationRideDetailScreen = () => {
                                 fromLocation,
                                 toLocation,
                                 date,
-                                maxSeats: ride.availableSeats
+                                maxSeats: ride.availableSeats,
+                                initialSeats: seats
                             } as never);
                         } else {
                             // Non-Pooling (Rentals)

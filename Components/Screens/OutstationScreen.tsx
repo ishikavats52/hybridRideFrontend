@@ -53,7 +53,7 @@ const OutstationScreen = () => {
     const toRef = useRef<GooglePlacesAutocompleteRef>(null);
 
     const incrementSeats = () => {
-        if (seats < 6) setSeats(seats + 1);
+        if (seats < 20) setSeats(seats + 1);
     };
 
     const decrementSeats = () => {

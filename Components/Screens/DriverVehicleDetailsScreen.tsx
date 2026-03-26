@@ -69,7 +69,7 @@ const DriverVehicleDetailsScreen = () => {
             year,
             plateNumber,
             color,
-            type: vehicleType, // Important: Include vehicle type
+            type: vehicleType, // Important: Include vehicle type (CAR, BIKE, TRAVELER)
             fuelType,
             seatingCapacity: vehicleType === 'BIKE' ? 1 : Number(seatingCapacity),
             bootSpace: vehicleType === 'BIKE' ? '0' : bootSpace
@@ -157,11 +157,11 @@ const DriverVehicleDetailsScreen = () => {
 
                 {vehicleType !== 'BIKE' && (
                     <>
-                        <Text style={styles.label}>PASSENGER SEAT CAPACITY</Text>
+                        <Text style={styles.label}>MAX PASSENGERS (TOTAL SEATS)</Text>
                         <View style={styles.counterContainer}>
                             <TouchableOpacity
                                 style={styles.counterButton}
-                                onPress={() => setSeatingCapacity(Math.max(1, seatingCapacity - 1))}
+                                onPress={() => setSeatingCapacity(Math.max(1, seatingCapacity-1))}
                             >
                                 <Text style={styles.counterText}>-</Text>
                             </TouchableOpacity>
@@ -185,7 +185,7 @@ const DriverVehicleDetailsScreen = () => {
                             />
                             <Text style={styles.unitText}>Liters</Text>
                         </View>
-                        <Text style={styles.helperText}>Boot capacity helps passengers with luggage choose their ride.</Text>
+                        <Text style={styles.helperText}>Number of passengers you can take (Excluding yourself). E.g., if you want to take 6 people, enter 6.</Text>
                     </>
                 )}
 

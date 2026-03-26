@@ -8,6 +8,7 @@ import {
     Dimensions,
     TextInput,
     Alert,
+    Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -23,6 +24,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { updateRideStatus, getBookingById } from '../../Services/rideService';
 import MapView, { Marker } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
+import { CONFIG } from '../../Constants/Config';
 
 import { GOOGLE_MAPS_API_KEY } from '../../Config/maps';
 
@@ -156,11 +158,15 @@ const DriverRideNavigationScreen = () => {
         }
     };
 
+    const handleSOS = () => {
+        Linking.openURL(`tel:${CONFIG.CALL_CENTER_PHONE}`);
+    };
+
     const renderPickupView = () => (
         <>
             {/* Navigation Banner (Floating Top) */}
             <View style={styles.navBanner}>
-                <TouchableOpacity style={styles.backButtonCompact} onPress={() => navigation.navigate('DriverHome' as never, { manualReturn: true } as never)}>
+                <TouchableOpacity style={styles.backButtonCompact} onPress={() => (navigation as any).navigate('DriverHome', { manualReturn: true })}>
                     <FontAwesomeIcon icon={faChevronRight} size={18} color="#FFFFFF" style={{ transform: [{ rotate: '180deg' }] }} />
                 </TouchableOpacity>
                 <View style={styles.turnIconBox}>
@@ -191,7 +197,7 @@ const DriverRideNavigationScreen = () => {
                         <FontAwesomeIcon icon={faPhone} size={16} color="#DC2626" />
                         <Text style={styles.actionButtonText}>Call</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('DriverChat' as never, { bookingId, passengerName: passenger.name } as never)}>
+                    <TouchableOpacity style={styles.actionButton} onPress={() => (navigation as any).navigate('DriverChat', { bookingId, passengerName: passenger.name })}>
                         <FontAwesomeIcon icon={faMessage} size={16} color="#111827" />
                         <Text style={styles.actionButtonText}>Chat</Text>
                     </TouchableOpacity>
@@ -235,7 +241,7 @@ const DriverRideNavigationScreen = () => {
             </TouchableOpacity>
 
             <View style={styles.secondaryActions}>
-                <TouchableOpacity style={[styles.actionButton, { flex: 1, marginRight: 8 }]} onPress={() => navigation.navigate('DriverChat' as never, { bookingId, passengerName: passenger.name } as never)}>
+                <TouchableOpacity style={[styles.actionButton, { flex: 1, marginRight: 8 }]} onPress={() => (navigation as any).navigate('DriverChat', { bookingId, passengerName: passenger.name })}>
                     <Text style={styles.actionButtonText}>Chat</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.actionButton, { flex: 1, marginLeft: 8, backgroundColor: '#FEF2F2' }]} onPress={() => setViewState('PICKUP')}>
@@ -249,16 +255,16 @@ const DriverRideNavigationScreen = () => {
         <>
             {/* Navigation Banner (Floating Top) - Matches Screenshot */}
             <View style={styles.navBannerDark}>
-                <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('DriverHome' as never, { manualReturn: true } as never)}>
+                <TouchableOpacity style={styles.backButton} onPress={() => (navigation as any).navigate('DriverHome', { manualReturn: true })}>
                     <FontAwesomeIcon icon={faChevronRight} size={20} color="#FFFFFF" style={{ transform: [{ rotate: '180deg' }] }} />
                 </TouchableOpacity>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.distanceTextLarge}>{rideDistance}</Text>
                     <Text style={styles.instructionTextSmall}>Navigating to Drop-off</Text>
                 </View>
-                <View style={styles.sosButton}>
+                <TouchableOpacity style={styles.sosButton} onPress={handleSOS}>
                     <Text style={styles.sosText}>SOS</Text>
-                </View>
+                </TouchableOpacity>
             </View>
 
             {/* Bottom Sheet - Drop Off Details */}
@@ -282,7 +288,7 @@ const DriverRideNavigationScreen = () => {
                             <Text style={styles.avatarTextSmall}>{(passenger?.name?.[0] || 'P').toUpperCase()}</Text>
                         </View>
                         <Text style={styles.passengerName}>{passenger?.name || 'Passenger'}</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('DriverChat' as never, { bookingId, passengerName: passenger.name } as never)}>
+                        <TouchableOpacity onPress={() => (navigation as any).navigate('DriverChat', { bookingId, passengerName: passenger.name })}>
                             <Text style={styles.chatLink}>CHAT WITH PASSENGER</Text>
                         </TouchableOpacity>
                     </View>

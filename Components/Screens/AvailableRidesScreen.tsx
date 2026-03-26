@@ -44,6 +44,7 @@ const AvailableRidesScreen = () => {
                             carModel: t.vehicle || 'City Pool Vehicle'
                         },
                         carType: 'POOL',
+                        vehicleType: t.vehicleType || 'CAR',
                         maxSeats: t.totalSeats || 4,
                         seatsAvailable: t.availableSeats,
                         price: t.pricePerSeat || 15,
@@ -77,6 +78,7 @@ const AvailableRidesScreen = () => {
             distance: ride.distance || distance,
             duration: ride.duration || duration,
             maxSeats: ride.maxSeats, // For dynamic seating logic
+            vehicleType: ride.vehicleType,
         });
     };
 

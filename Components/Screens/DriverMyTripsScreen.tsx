@@ -7,7 +7,7 @@ import {
     ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { Alert, ActivityIndicator, Linking } from 'react-native';
 import poolService from '../../Services/poolService';
@@ -19,7 +19,9 @@ type Tab = 'Upcoming' | 'Past';
 
 const DriverMyTripsScreen = () => {
     const navigation = useNavigation();
-    const [activeTab, setActiveTab] = useState<Tab>('Upcoming');
+    const route = useRoute();
+    const initialTab = (route.params as any)?.initialTab || 'Upcoming';
+    const [activeTab, setActiveTab] = useState<Tab>(initialTab);
     const [trips, setTrips] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [expandedTripId, setExpandedTripId] = useState<string | null>(null);
@@ -292,9 +294,26 @@ const DriverMyTripsScreen = () => {
                                         >
                                             <Text style={styles.cancelButtonText}>Cancel Trip</Text>
                                         </TouchableOpacity>
-                                        <TouchableOpacity style={styles.startTripButton} onPress={() => updateTripStatus(trip.id, 'completed')}>
-                                            <Text style={styles.startTripText}>Complete Trip</Text>
-                                        </TouchableOpacity>
+                                        
+                                        {(() => {
+                                            const isFuture = new Date(trip.rawDate) > new Date();
+                                            return (
+                                                <TouchableOpacity 
+                                                    style={[styles.startTripButton, isFuture && { backgroundColor: '#94A3B8', opacity: 0.7 }]} 
+                                                    onPress={() => {
+                                                        if (isFuture) {
+                                                            Alert.alert("Wait", "You can only mark this trip as completed after the scheduled time.");
+                                                        } else {
+                                                            updateTripStatus(trip.id, 'completed');
+                                                        }
+                                                    }}
+                                                >
+                                                    <Text style={styles.startTripText}>
+                                                        {isFuture ? 'Wait for time' : 'Complete Trip'}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })()}
                                     </>
                                 )}
                                 {activeTab === 'Past' && (

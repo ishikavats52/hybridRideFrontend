@@ -12,6 +12,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faCommentAlt, faPhone, faTimes, faCar, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../Context/AuthContext';
 import { getActiveRide, updateRideStatus } from '../../Services/rideService';
+import { CONFIG } from '../../Constants/Config';
 import MapView, { Marker } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import DriverChatModal from './DriverChatModal';
@@ -102,6 +103,10 @@ const RideTrackingScreen = () => {
         Linking.openURL('tel:1234567890');
     };
 
+    const handleSOS = () => {
+        Linking.openURL(`tel:${CONFIG.CALL_CENTER_PHONE}`);
+    };
+
     const handleConfirmCancel = async (reason: string) => {
         if (!bookingId) return;
         try {
@@ -178,7 +183,7 @@ const RideTrackingScreen = () => {
                 </View>
 
                 {/* SOS Button */}
-                <TouchableOpacity style={styles.sosButton}>
+                <TouchableOpacity style={styles.sosButton} onPress={handleSOS}>
                     <Text style={styles.sosText}>SOS</Text>
                 </TouchableOpacity>
 

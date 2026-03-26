@@ -54,10 +54,10 @@ const UnifiedLoginScreen = () => {
 
         try {
             if (isWhatsAppMode) {
-                await whatsappLogin(phoneNumber);
+                await whatsappLogin(phoneNumber, userType.toLowerCase());
             } else {
                 // If standard phone login, use whatsappLogin as placeholder or direct login
-                await whatsappLogin(phoneNumber); 
+                await whatsappLogin(phoneNumber, userType.toLowerCase()); 
             }
             
             (navigation as any).navigate('OtpVerification', { 

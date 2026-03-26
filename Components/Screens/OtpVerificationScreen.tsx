@@ -47,7 +47,7 @@ const OtpVerificationScreen = () => {
         const otpString = otp.join('');
         if (otpString.length === 6) {
             try {
-                await verifyOTP(phoneNumber, otpString);
+                await verifyOTP(phoneNumber, otpString, userType.toLowerCase());
                 // Success! Navigation is handled by AppNavigator as 'user' is now set in AuthContext
                 Alert.alert("Success", "Logged in successfully");
             } catch (error: any) {

@@ -5,33 +5,24 @@ import {
     View,
     TouchableOpacity,
     ScrollView,
-    Image,
-    Alert
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import {
-    faCreditCard,
     faPlus,
-    faMobileScreenButton,
     faArrowRight,
-    faBriefcase,
-    faCarSide,
     faBolt,
     faWallet,
     faHeart,
-    faCar,
-    faMountainSun
 } from '@fortawesome/free-solid-svg-icons';
-import { faApple } from '@fortawesome/free-brands-svg-icons';
 import BottomNavBar from '../Navigation/BottomNavBar';
 import DriverBottomNavBar from '../Navigation/DriverBottomNavBar';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../Context/AuthContext';
-import poolService, { PoolRide } from '../../Services/poolService';
-import { getDriverEarnings } from '../../Services/rideService';
 import RazorpayCheckout from 'react-native-razorpay';
 import { createRazorpayOrder, verifyRazorpayPayment } from '../../Services/paymentService';
+import { getMyWalletData, requestWithdrawal } from '../../Services/walletService';
 import { CONFIG } from '../../Constants/Config';
 
 const WalletScreen = () => {
@@ -41,65 +32,36 @@ const WalletScreen = () => {
     const isDriver = route.params?.mode === 'driver' || user?.role === 'driver';
 
     const [balance, setBalance] = React.useState('0.00');
-    const [recentActivity, setRecentActivity] = React.useState<PoolRide[]>([]);
-    const [isLoadingActivity, setIsLoadingActivity] = React.useState(true);
+    const [transactions, setTransactions] = React.useState<any[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
 
     const formatActivityDate = (dateStr: string) => {
         if (!dateStr) return '';
         const date = new Date(dateStr);
-        const month = date.toLocaleString('default', { month: 'short' }).toUpperCase();
-        const day = date.getDate();
-        let hours = date.getHours();
-        const minutes = date.getMinutes().toString().padStart(2, '0');
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        hours = hours % 12;
-        hours = hours ? hours : 12;
-        return `${month} ${day} • ${hours}:${minutes} ${ampm}`;
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const fetchWalletData = async () => {
+        try {
+            setIsLoading(true);
+            const res = await getMyWalletData();
+            if (res.success && res.data) {
+                setBalance(parseFloat(res.data.balance || 0).toFixed(2));
+                setTransactions(res.data.transactions || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch wallet data', error);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     React.useEffect(() => {
-        if (isDriver) {
-            const fetchBalance = async () => {
-                try {
-                    const res = await getDriverEarnings();
-                    if (res.success && res.data) {
-                        setBalance(parseFloat(res.data.currentBalance || 0).toFixed(2));
-                    }
-                } catch (error) {
-                    console.error('Failed to fetch balance', error);
-                }
-            };
-            fetchBalance();
-        } else {
-            setBalance(parseFloat(user?.walletBalance || 0).toFixed(2));
-        }
+        fetchWalletData();
+    }, [isDriver]);
 
-        const fetchHistory = async () => {
-            try {
-                setIsLoadingActivity(true);
-                const res = isDriver
-                    ? await poolService.getDriverHistory()
-                    : await poolService.getPassengerHistory();
-
-                if (res.success && res.data) {
-                    const completed = res.data.filter((r: PoolRide) => r.status === 'completed');
-                    const sorted = completed.sort((a: PoolRide, b: PoolRide) =>
-                        new Date(b.scheduledTime).getTime() - new Date(a.scheduledTime).getTime()
-                    );
-                    setRecentActivity(sorted.slice(0, 3));
-                }
-            } catch (error) {
-                console.error('Failed to fetch activity history', error);
-            } finally {
-                setIsLoadingActivity(false);
-            }
-        };
-        fetchHistory();
-    }, [isDriver, user?.walletBalance]);
-
-    const handleAddMoney = async () => {
+    const handleAddMoney = async (amount: number = 500) => {
         try {
-            const amount = 500; // Fixed quick-add amount for concept
             const orderRes = await createRazorpayOrder(amount);
 
             if (!orderRes.success) {
@@ -108,15 +70,15 @@ const WalletScreen = () => {
             }
 
             const options = {
-                description: 'Wallet Top-up',
+                description: `Wallet Top-up ₹${amount}`,
                 currency: 'INR',
                 key: CONFIG.RAZORPAY_KEY_ID,
                 amount: amount * 100,
                 name: 'Sanchari',
                 order_id: orderRes.order.id,
                 prefill: {
-                    contact: user?.phone || '9999999999',
-                    name: user?.name || 'User'
+                    contact: user?.phone || '',
+                    name: user?.name || ''
                 },
                 theme: { color: '#059669' }
             };
@@ -129,8 +91,9 @@ const WalletScreen = () => {
                     amount
                 );
                 if (verifyRes.success) {
+                    await fetchWalletData();
                     await refetchUser();
-                    Alert.alert('Success', '₹500 added to wallet successfully!');
+                    Alert.alert('Success', `₹${amount} added to wallet successfully!`);
                 }
             }).catch((error: any) => {
                 Alert.alert('Cancelled', 'Payment was cancelled or failed.');
@@ -141,208 +104,147 @@ const WalletScreen = () => {
         }
     };
 
+    const handleWithdraw = () => {
+        const amountNum = parseFloat(balance);
+        if (amountNum < 100) {
+            Alert.alert('Minimum Balance', 'You need at least ₹100 to withdraw.');
+            return;
+        }
+
+        Alert.alert(
+            'Instant Withdrawal',
+            `Withdraw ₹${balance}?\n\nNote: A 2% processing fee (₹${(amountNum * 0.02).toFixed(2)}) will be deducted. Net amount: ₹${(amountNum * 0.98).toFixed(2)}`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                    text: 'Withdraw Now', 
+                    onPress: async () => {
+                        const res = await requestWithdrawal(amountNum, 'instant');
+                        if (res.success) {
+                            Alert.alert('Request Sent', 'Your withdrawal request has been submitted and will be processed soon.');
+                            fetchWalletData();
+                        } else {
+                            Alert.alert('Error', res.message || 'Failed to request withdrawal');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     return (
         <View style={styles.container}>
             <SafeAreaView style={styles.safeArea}>
                 <View style={[styles.header, { paddingHorizontal: 20 }]}>
                     <Text style={styles.headerTitle}>Wallet</Text>
-                    <Text style={styles.headerSubtitle}>Manage your payment methods</Text>
+                    <Text style={styles.headerSubtitle}>{isDriver ? 'Your Earnings & Payouts' : 'Manage your Sanchari Cash'}</Text>
                 </View>
 
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
                     {/* Balance Card */}
-                    <View style={styles.balanceCard}>
-                        <Text style={styles.balanceLabel}>SANCHARI CASH BALANCE</Text>
+                    <View style={[styles.balanceCard, isDriver && { backgroundColor: '#059669' }]}>
+                        <Text style={styles.balanceLabel}>CURRENT BALANCE</Text>
                         <Text style={styles.balanceAmount}>₹{balance}</Text>
-                        <TouchableOpacity
-                            style={styles.addMoneyButton}
-                            onPress={handleAddMoney}
-                        >
-                            <FontAwesomeIcon icon={faPlus} size={12} color="#111827" style={{ marginRight: 8 }} />
-                            <Text style={styles.addMoneyText}>Add ₹500</Text>
-                        </TouchableOpacity>
+                        
+                        <View style={{ flexDirection: 'row', gap: 10 }}>
+                            {!isDriver ? (
+                                <TouchableOpacity style={styles.addMoneyButton} onPress={() => handleAddMoney(500)}>
+                                    <FontAwesomeIcon icon={faPlus} size={12} color="#111827" style={{ marginRight: 8 }} />
+                                    <Text style={styles.addMoneyText}>Add ₹500</Text>
+                                </TouchableOpacity>
+                            ) : (
+                                <TouchableOpacity style={[styles.addMoneyButton, { backgroundColor: '#FFFFFF' }]} onPress={handleWithdraw}>
+                                    <FontAwesomeIcon icon={faArrowRight} size={12} color="#059669" style={{ marginRight: 8 }} />
+                                    <Text style={[styles.addMoneyText, { color: '#059669' }]}>Withdraw All</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
                     </View>
 
-                    {/* Recommended Offers */}
+                    {/* Quick Top-up for Passengers */}
+                    {!isDriver && (
+                        <View style={{ marginBottom: 24 }}>
+                            <Text style={styles.sectionHeaderSmall}>QUICK TOP-UP</Text>
+                            <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                                {[100, 200, 1000].map(amt => (
+                                    <TouchableOpacity 
+                                        key={amt} 
+                                        style={{ flex: 1, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center' }}
+                                        onPress={() => handleAddMoney(amt)}
+                                    >
+                                        <Text style={{ fontWeight: '700', color: '#374151' }}>₹{amt}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+                    )}
+
+                    {/* Offers Section */}
                     <View style={styles.sectionHeaderRow}>
-                        <Text style={styles.sectionHeader}>Recommended Offers</Text>
-                        <TouchableOpacity>
-                            <Text style={styles.viewAllText}>VIEW ALL</Text>
-                        </TouchableOpacity>
+                        <Text style={styles.sectionHeader}>{isDriver ? 'Earner Benefits' : 'Wallet Offers'}</Text>
                     </View>
 
                     <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
                         style={styles.offersScroll}
-                        contentContainerStyle={{
-                            paddingHorizontal: 20,
-                            flexDirection: 'row'
-                        }}
+                        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 10 }}
                     >
-                        {/* Offer 1 */}
                         <View style={styles.offerCard}>
                             <View style={styles.offerIconContainer}>
-                                <FontAwesomeIcon icon={faBriefcase} size={20} color="#92400E" />
+                                <FontAwesomeIcon icon={faBolt} size={20} color="#92400E" />
                             </View>
-                            <Text style={styles.offerType}>CITY COMMUTE</Text>
-                            <Text style={styles.offerTitle}>Weekday Office Route</Text>
-                            <Text style={styles.offerDesc}>Save 10% on your morning commute to Tech Park.</Text>
-                            <TouchableOpacity style={styles.learnMoreRow}>
-                                <Text style={styles.learnMoreText}>LEARN MORE</Text>
-                                <FontAwesomeIcon icon={faArrowRight} size={10} color="#2563EB" />
-                            </TouchableOpacity>
+                            <Text style={styles.offerType}>{isDriver ? 'INSTANT' : 'PROMO'}</Text>
+                            <Text style={styles.offerTitle}>{isDriver ? 'Instant Payouts' : 'Top-up Bonus'}</Text>
+                            <Text style={styles.offerDesc}>{isDriver ? 'Withdraw your earnings anytime with a small 2% flat fee.' : 'Add ₹1000 or more and get ₹50 extra Sanchari Cash.'}</Text>
                         </View>
 
-                        {/* Offer 2 */}
                         <View style={styles.offerCard}>
-                            <View style={[styles.offerIconContainer, { backgroundColor: '#FEF3C7' }]}>
-                                <FontAwesomeIcon icon={faMountainSun} size={20} color="#B45309" />
+                            <View style={[styles.offerIconContainer, { backgroundColor: '#ECFDF5' }]}>
+                                <FontAwesomeIcon icon={faHeart} size={20} color="#059669" />
                             </View>
-                            <Text style={styles.offerType}>INTER-CITY</Text>
-                            <Text style={styles.offerTitle}>Shared-Ride Savings</Text>
-                            <Text style={[styles.offerDesc, { height: 'auto' }]}>Planning a long weekend? Book shared rides and save up to ₹45.</Text>
-                            <TouchableOpacity style={styles.learnMoreRow}>
-                                <Text style={[styles.learnMoreText, { color: '#9333EA' }]}>CHECK AVAILABILITY</Text>
-                                <FontAwesomeIcon icon={faArrowRight} size={10} color="#9333EA" />
-                            </TouchableOpacity>
+                            <Text style={styles.offerType}>REWARDS</Text>
+                            <Text style={styles.offerTitle}>Loyalty Points</Text>
+                            <Text style={styles.offerDesc}>Every transaction earns you points redeemable for future rides.</Text>
                         </View>
-
-                        
                     </ScrollView>
 
-                    {/* Ride Savings */}
-                    <View style={styles.sectionHeaderRow}>
-                        <Text style={styles.sectionHeader}>Your Ride Savings</Text>
-                        <TouchableOpacity style={styles.dateFilter}>
-                            <Text style={styles.dateFilterText}>OCT 2023</Text>
-                            {/* Chevron down icon could go here */}
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.savingsCard}>
-                        <Text style={styles.monthlySummaryLabel}>MONTHLY SUMMARY</Text>
-                        <Text style={styles.totalSavings}>₹480.00</Text>
-                        <View style={styles.percentageBadge}>
-                            <Text style={styles.percentageText}>+24% from last month</Text>
+                    {/* Recent Transactions */}
+                    <Text style={[styles.sectionHeader, { marginBottom: 16 }]}>Recent Transactions</Text>
+                    
+                    {isLoading ? (
+                        <Text style={{ textAlign: 'center', color: '#6B7280' }}>Loading transactions...</Text>
+                    ) : transactions.length === 0 ? (
+                        <View style={{ padding: 40, alignItems: 'center' }}>
+                            <FontAwesomeIcon icon={faWallet} size={40} color="#E5E7EB" />
+                            <Text style={{ color: '#9CA3AF', marginTop: 12 }}>No transactions yet</Text>
                         </View>
-
-                        {/* Breakdown */}
-                        <View style={styles.savingsBreakdownItem}>
-                            <View style={styles.savingsIconContainer}>
-                                <FontAwesomeIcon icon={faHeart} size={16} color="#F59E0B" />
-                            </View>
-                            <View style={styles.savingsInfo}>
-                                <Text style={styles.savingsTitle}>Shared Rides</Text>
-                                <Text style={styles.savingsSubtitle}>Pooling with neighbors</Text>
-                            </View>
-                            <Text style={styles.savingsAmount}>₹320.00</Text>
-                        </View>
-
-                        <View style={styles.savingsBreakdownItem}>
-                            <View style={styles.savingsIconContainer}>
-                                <FontAwesomeIcon icon={faCarSide} size={16} color="#DC2626" />
-                            </View>
-                            <View style={styles.savingsInfo}>
-                                <Text style={styles.savingsTitle}>Route Matching</Text>
-                                <Text style={styles.savingsSubtitle}>Optimized trip planning</Text>
-                            </View>
-                            <Text style={styles.savingsAmount}>₹160.00</Text>
-                        </View>
-                    </View>
-
-                    {/* Today's Savings */}
-                    <Text style={[styles.sectionHeaderSmall, { marginTop: 24 }]}>TODAY'S SAVINGS</Text>
-                    <View style={styles.todaySavingsRow}>
-                        <View style={styles.todaySavingsLeft}>
-                            <FontAwesomeIcon icon={faCar} size={14} color="#DC2626" style={{ marginRight: 10 }} />
-                            <Text style={styles.todaySavingsTitle}>Office Ride</Text>
-                        </View>
-                        <Text style={styles.todaySavingsAmountNegative}>-₹12.00</Text>
-                    </View>
-                    <View style={[styles.todaySavingsRow, { backgroundColor: '#ECFDF5', borderColor: '#D1FAE5' }]}>
-                        <View style={styles.todaySavingsLeft}>
-                            <FontAwesomeIcon icon={faHeart} size={14} color="#059669" style={{ marginRight: 10 }} />
-                            <Text style={[styles.todaySavingsTitle, { color: '#065F46' }]}>Shared Saving</Text>
-                        </View>
-                        <Text style={[styles.todaySavingsAmountPositive, { color: '#059669' }]}>+₹4.00</Text>
-                    </View>
-
-
-                    {/* Payment Methods */}
-                    <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
-                        <Text style={styles.sectionHeader}>Payment Methods</Text>
-                        <TouchableOpacity>
-                            <Text style={styles.viewAllText}>EDIT</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.paymentMethodsContainer}>
-                        {/* Card 1 */}
-                        <View style={styles.paymentMethodRow}>
-                            <View style={styles.paymentIconBox}>
-                                <FontAwesomeIcon icon={faCreditCard} size={20} color="#374151" />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.paymentTitle}>Primary Card</Text>
-                                <Text style={styles.paymentSubtitle}>**** 4242</Text>
-                            </View>
-                            <View style={styles.primaryBadge}>
-                                <Text style={styles.primaryBadgeText}>PRIMARY</Text>
-                            </View>
-                        </View>
-
-                        {/* Divider */}
-                        {/* <View style={styles.divider}/> */}
-                        {/* Card 2 */}
-                        <View style={[styles.paymentMethodRow, { borderBottomWidth: 0, marginBottom: 0 }]}>
-                            <View style={styles.paymentIconBox}>
-                                <FontAwesomeIcon icon={faMobileScreenButton} size={20} color="#374151" />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.paymentTitle}>Apple Pay</Text>
-                                <Text style={styles.paymentSubtitle}>Linked</Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    {/* Recent Activity */}
-                    <Text style={[styles.sectionHeader, { marginTop: 24, marginBottom: 12 }]}>Recent Activity</Text>
-
-                    {isLoadingActivity ? (
-                        <Text style={{ textAlign: 'center', color: '#6B7280', marginTop: 10 }}>Loading activity...</Text>
-                    ) : recentActivity.length === 0 ? (
-                        <Text style={{ textAlign: 'center', color: '#6B7280', marginTop: 10 }}>No recent transactions found.</Text>
                     ) : (
-                        recentActivity.map((trip) => {
-                            const isIncome = isDriver;
-                            const amount = trip.pricePerSeat || 0;
-                            return (
-                                <View style={styles.activityRow} key={trip._id}>
-                                    <View style={[styles.activityIconBox, { backgroundColor: isIncome ? '#ECFDF5' : '#FFF7ED' }]}>
-                                        <FontAwesomeIcon icon={isIncome ? faPlus : faBolt} size={16} color={isIncome ? '#059669' : '#EA580C'} />
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.activityTitle}>Ride {isIncome ? 'Income' : 'Payment'}</Text>
-                                        <Text style={styles.activityDate}>{formatActivityDate(trip.scheduledTime)}</Text>
-                                    </View>
-                                    <Text style={isIncome ? styles.activityAmountPositive : styles.activityAmountNegative}>
-                                        {isIncome ? '+' : '-'}₹{amount.toFixed(2)}
-                                    </Text>
+                        transactions.map((tx: any, index: number) => (
+                            <View key={tx._id || index} style={styles.activityRow}>
+                                <View style={[styles.activityIconBox, { backgroundColor: tx.type === 'credit' ? '#ECFDF5' : '#FEF2F2' }]}>
+                                    <FontAwesomeIcon 
+                                        icon={tx.type === 'credit' ? faPlus : faArrowRight} 
+                                        size={14} 
+                                        color={tx.type === 'credit' ? '#059669' : '#DC2626'} 
+                                    />
                                 </View>
-                            );
-                        })
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.activityTitle}>{tx.description || (tx.type === 'credit' ? 'Wallet Top-up' : 'Withdrawal')}</Text>
+                                    <Text style={styles.activityDate}>{formatActivityDate(tx.timestamp)}</Text>
+                                </View>
+                                <Text style={tx.type === 'credit' ? styles.activityAmountPositive : styles.activityAmountNegative}>
+                                    {tx.type === 'credit' ? '+' : '-'}₹{tx.amount.toFixed(2)}
+                                </Text>
+                            </View>
+                        ))
                     )}
 
                     <View style={{ height: 100 }} />
                 </ScrollView>
 
-                {route.params?.mode === 'driver' ? (
-                    <DriverBottomNavBar activeTab="PAYMENTS" />
-                ) : (
-                    <BottomNavBar activeTab="PAYMENTS" />
-                )}
+                {isDriver ? <DriverBottomNavBar activeTab="PAYMENTS" /> : <BottomNavBar activeTab="PAYMENTS" />}
             </SafeAreaView>
         </View>
     );
@@ -358,11 +260,11 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         paddingHorizontal: 20,
-        paddingTop: 10, // Reduced from 20
+        paddingTop: 10,
         paddingBottom: 20,
     },
     header: {
-        marginBottom: 10, // Reduced from 24
+        marginBottom: 10,
         backgroundColor: '#FFFFFF',
         paddingTop: 20,
     },
@@ -381,10 +283,6 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         padding: 24,
         marginBottom: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
         elevation: 8,
     },
     balanceLabel: {
@@ -392,7 +290,6 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '700',
         marginBottom: 8,
-        textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
     balanceAmount: {
@@ -408,7 +305,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingVertical: 12,
         borderRadius: 12,
-        alignSelf: 'flex-start',
         paddingHorizontal: 20,
     },
     addMoneyText: {
@@ -427,15 +323,8 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         color: '#111827',
     },
-    viewAllText: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#10B981',
-        textTransform: 'uppercase',
-    },
     offersScroll: {
         marginBottom: 32,
-        // marginHorizontal: -20,
     },
     offerCard: {
         backgroundColor: '#FFFFFF',
@@ -445,11 +334,6 @@ const styles = StyleSheet.create({
         marginRight: 16,
         borderWidth: 1,
         borderColor: '#F3F4F6',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
     },
     offerIconContainer: {
         width: 40,
@@ -459,13 +343,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 12,
-        flexDirection: 'row',
     },
     offerType: {
         fontSize: 10,
         fontWeight: '800',
         color: '#9CA3AF',
-        textTransform: 'uppercase',
         marginBottom: 4,
         letterSpacing: 0.5,
     },
@@ -479,187 +361,12 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#6B7280',
         lineHeight: 18,
-        marginBottom: 16,
-        height: 36, // Fixed height for alignment
-    },
-    learnMoreRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    learnMoreText: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#2563EB',
-        marginRight: 6,
-    },
-    dateFilter: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    dateFilterText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: '#9CA3AF',
-    },
-    savingsCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 24,
-        // marginBottom: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 3,
-        borderWidth: 1,
-        borderColor: '#F3F4F6',
-        alignItems: 'center',
-    },
-    monthlySummaryLabel: {
-        fontSize: 12,
-        fontWeight: '800',
-        color: '#9CA3AF',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-        marginBottom: 8,
-    },
-    totalSavings: {
-        fontSize: 32,
-        fontWeight: '800',
-        color: '#10B981', // Green
-        marginBottom: 12,
-    },
-    percentageBadge: {
-        backgroundColor: '#ECFDF5',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
-        marginBottom: 24,
-    },
-    percentageText: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#059669',
-    },
-    savingsBreakdownItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F9FAFB',
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 12,
-        width: '100%',
-    },
-    savingsIconContainer: {
-        width: 36,
-        height: 36,
-        // borderRadius: 18,
-        // backgroundColor: '#FEF3C7',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    savingsInfo: {
-        flex: 1,
-    },
-    savingsTitle: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#111827',
-    },
-    savingsSubtitle: {
-        fontSize: 11,
-        color: '#6B7280',
-    },
-    savingsAmount: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#059669',
     },
     sectionHeaderSmall: {
         fontSize: 12,
         fontWeight: '800',
         color: '#9CA3AF',
-        textTransform: 'uppercase',
         letterSpacing: 0.5,
-        marginBottom: 12,
-    },
-    todaySavingsRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 16,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#F3F4F6',
-    },
-    todaySavingsLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    todaySavingsTitle: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#374151',
-    },
-    todaySavingsAmountNegative: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#9CA3AF',
-    },
-    todaySavingsAmountPositive: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#059669',
-    },
-    paymentMethodsContainer: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        padding: 8,
-        borderWidth: 1,
-        borderColor: '#F3F4F6',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 2,
-    },
-    paymentMethodRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 12,
-    },
-    paymentIconBox: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
-        backgroundColor: '#F3F4F6',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 16,
-    },
-    paymentTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#111827',
-        marginBottom: 2,
-    },
-    paymentSubtitle: {
-        fontSize: 12,
-        color: '#6B7280',
-    },
-    primaryBadge: {
-        backgroundColor: '#ECFDF5',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
-    },
-    primaryBadgeText: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: '#059669',
     },
     activityRow: {
         flexDirection: 'row',
@@ -670,11 +377,6 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         borderWidth: 1,
         borderColor: '#F3F4F6',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.02,
-        shadowRadius: 2,
-        elevation: 1,
     },
     activityIconBox: {
         width: 40,
@@ -694,7 +396,6 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontWeight: '600',
         color: '#9CA3AF',
-        textTransform: 'uppercase',
     },
     activityAmountNegative: {
         fontSize: 16,
@@ -706,7 +407,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#10B981',
     },
-
 });
 
 export default WalletScreen;

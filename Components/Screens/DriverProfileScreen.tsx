@@ -197,19 +197,19 @@ const DriverProfileScreen = () => {
                             <View style={styles.badgesRow}>
                                 {user?.phone && (
                                     <View style={styles.verifiedBadge}>
-                                        <FontAwesomeIcon icon={faCheck} size={10} color="#059669" style={{ marginRight: 4 }} />
+                                        <FontAwesomeIcon icon={faCheck} size={10} color="#059669" style={{ marginRight: 2 }} />
                                         <Text style={styles.verifiedText}>Phone Verified</Text>
                                     </View>
                                 )}
                                 {user?.verificationStatus?.idCard && (
                                     <View style={styles.verifiedBadge}>
-                                        <FontAwesomeIcon icon={faCheck} size={10} color="#059669" style={{ marginRight: 4 }} />
+                                        <FontAwesomeIcon icon={faCheck} size={10} color="#059669" style={{ marginRight: 2 }} />
                                         <Text style={styles.verifiedText}>ID Verified</Text>
                                     </View>
                                 )}
                                 {user?.verificationStatus?.email && (
                                     <View style={styles.verifiedBadge}>
-                                        <FontAwesomeIcon icon={faCheck} size={10} color="#059669" style={{ marginRight: 4 }} />
+                                        <FontAwesomeIcon icon={faCheck} size={10} color="#059669" style={{ marginRight: 2}} />
                                         <Text style={styles.verifiedText}>Email Verified</Text>
                                     </View>
                                 )}
@@ -225,7 +225,7 @@ const DriverProfileScreen = () => {
                     </View>
 
                     {/* Ride Personality */}
-                    <View style={styles.sectionContainer}>
+                    {/* <View style={styles.sectionContainer}>
                         <View style={styles.sectionHeaderRow}>
                             <Text style={styles.sectionTitle}>Ride Personality</Text>
                             <TouchableOpacity>
@@ -246,7 +246,7 @@ const DriverProfileScreen = () => {
                                 <Text style={{ color: '#9CA3AF', fontSize: 13 }}>No preferences set</Text>
                             )}
                         </View>
-                    </View>
+                    </View> */}
 
                     {/* Menu Links */}
                     <View style={styles.menuContainer}>
@@ -290,7 +290,7 @@ const DriverProfileScreen = () => {
                     {/* </View> */}
 
                     {/* Saved Places */}
-                    <View style={styles.sectionContainer}>
+                    {/* <View style={styles.sectionContainer}>
                         <Text style={styles.sectionTitle}>Saved Places</Text>
                         <View style={styles.savedPlacesContainer}>
                             {user?.savedPlaces && user.savedPlaces.length > 0 ? (
@@ -314,7 +314,7 @@ const DriverProfileScreen = () => {
                                 <Text style={styles.addPlaceText}>+ Add New Place</Text>
                             </TouchableOpacity>
                         </View>
-                    </View>
+                    </View> */}
 
                     <View style={{ height: 100 }} />
 
@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#DEF7EC', // Light green
-        paddingHorizontal: 10,
+        paddingHorizontal: 4,
         paddingVertical: 6,
         borderRadius: 20,
         marginRight: 8,

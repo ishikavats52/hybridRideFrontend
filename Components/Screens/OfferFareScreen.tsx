@@ -117,7 +117,7 @@ const OfferFareScreen = () => {
                 {/* Price Controls */}
                 <View style={styles.priceControlContainer}>
                     <TouchableOpacity style={styles.controlButtonLight} onPress={handleDecrement}>
-                        <FontAwesomeIcon icon={faMinus} size={20} color="#9CA3AF" />
+                        <FontAwesomeIcon icon={faMinus} size={15} color="#9CA3AF" />
                     </TouchableOpacity>
 
                     <View style={styles.priceDisplay}>
@@ -126,7 +126,7 @@ const OfferFareScreen = () => {
                     </View>
 
                     <TouchableOpacity style={styles.controlButtonDark} onPress={handleIncrement}>
-                        <FontAwesomeIcon icon={faPlus} size={20} color="#FFFFFF" />
+                        <FontAwesomeIcon icon={faPlus} size={15} color="#FFFFFF" />
                     </TouchableOpacity>
                 </View>
 

@@ -7,6 +7,7 @@ import {
     ScrollView,
     TextInput,
     Dimensions,
+    Linking
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -26,6 +27,7 @@ import DriverBottomNavBar from '../Navigation/DriverBottomNavBar';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../Context/AuthContext';
 import poolService, { PoolRide } from '../../Services/poolService';
+import { CONFIG } from '../../Constants/Config';
 
 const { width } = Dimensions.get('window');
 
@@ -75,6 +77,10 @@ const SupportScreen = () => {
         return `${month} ${day}, ${hours}:${minutes} ${ampm}`;
     };
 
+    const handleSOS = () => {
+        Linking.openURL(`tel:${CONFIG.CALL_CENTER_PHONE}`);
+    };
+
     return (
         <View style={styles.container}>
             <View style={styles.contentContainer}>
@@ -86,7 +92,7 @@ const SupportScreen = () => {
                     <View style={{ height: 250 }} />
 
                     {/* No Active Ride / Status Card */}
-                    <View style={styles.statusCard}>
+                    {/* <View style={styles.statusCard}>
                         <View style={styles.statusIconContainer}>
                             <FontAwesomeIcon icon={faCar} size={24} color="#374151" />
                         </View>
@@ -94,26 +100,18 @@ const SupportScreen = () => {
                         <Text style={styles.statusSubtitle}>
                             Select a past trip or browse support topics below for assistance.
                         </Text>
-                    </View>
+                    </View> */}
 
-                    {/* SOS and Live Chat Grid */}
-                    <View style={styles.gridContainer}>
-                        <TouchableOpacity style={styles.gridCard}>
-                            <View style={[styles.gridIconContainer, { backgroundColor: '#F3F4F6' }]}>
-                                <FontAwesomeIcon icon={faTriangleExclamation} size={20} color="#9CA3AF" />
+                    <View style={styles.sosButtonContainer}>
+                        <TouchableOpacity style={styles.sosButton} onPress={handleSOS}>
+                            <View style={styles.sosIconCircle}>
+                                <FontAwesomeIcon icon={faTriangleExclamation} size={24} color="#FFFFFF" />
                             </View>
-                            <Text style={styles.gridTitle}>Emergency SOS</Text>
-                            <Text style={styles.gridSubtitle}>Safety assistance</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.gridCard}>
-                            <View style={[styles.gridIconContainer, { backgroundColor: '#ECFDF5' }]}>
-                                <FontAwesomeIcon icon={faCommentDots} size={20} color="#059669" />
+                            <View style={styles.sosTextContainer}>
+                                <Text style={styles.sosTitle}>EMERGENCY SOS</Text>
+                                <Text style={styles.sosSubtitle}>Immediate help from our 24/7 safety team</Text>
                             </View>
-                            <Text style={styles.gridTitle}>Live Chat</Text>
-                            <View style={styles.waitBadge}>
-                                <Text style={styles.waitText}>Wait &lt; 2 min</Text>
-                            </View>
+                            <FontAwesomeIcon icon={faChevronRight} size={16} color="#FFFFFF" style={{ opacity: 0.6 }} />
                         </TouchableOpacity>
                     </View>
 
@@ -156,7 +154,7 @@ const SupportScreen = () => {
                                     </View>
                                     <TouchableOpacity style={styles.reportButton}>
                                         <Text style={styles.reportButtonText}>
-                                            {trip.status === 'cancelled' ? 'Details →' : 'REPORT ISSUE →'}
+                                            {trip.status === 'cancelled'}
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
@@ -169,17 +167,17 @@ const SupportScreen = () => {
                     <Text style={[styles.sectionHeader, { marginTop: 24, marginBottom: 12 }]}>GENERAL SUPPORT</Text>
 
                     <View style={styles.menuCard}>
-                        <TouchableOpacity style={styles.menuItem}>
-                            <View style={styles.menuIconBox}>
+                        {/* <TouchableOpacity style={styles.menuItem}> */}
+                            {/* <View style={styles.menuIconBox}>
                                 <FontAwesomeIcon icon={faFileInvoice} size={20} color="#374151" />
-                            </View>
-                            <View style={styles.menuContent}>
-                                <Text style={styles.menuTitle}>Payment &amp; Invoices</Text>
-                                <Text style={styles.menuSubtitle}>Refunds, receipts, wallet help</Text>
-                            </View>
-                            <FontAwesomeIcon icon={faChevronRight} size={14} color="#D1D5DB" />
-                        </TouchableOpacity>
-                        <View style={styles.divider} />
+                            </View> */}
+                            {/* <View style={styles.menuContent}> */}
+                                {/* <Text style={styles.menuTitle}>Payment &amp; Invoices</Text> */}
+                                {/* <Text style={styles.menuSubtitle}>Refunds, receipts, wallet help</Text> */}
+                            {/* </View> */}
+                            {/* <FontAwesomeIcon icon={faChevronRight} size={14} color="#D1D5DB" /> */}
+                        {/* </TouchableOpacity> */}
+                        {/* <View style={styles.divider} /> */}
 
                         <TouchableOpacity style={styles.menuItem}>
                             <View style={styles.menuIconBox}>
@@ -237,18 +235,18 @@ const SupportScreen = () => {
                         </View>
                     </View>
 
-                    <View style={styles.searchBar}>
+                    {/* <View style={styles.searchBar}>
                         <FontAwesomeIcon icon={faMagnifyingGlass} size={16} color="#6B7280" style={{ marginRight: 12 }} />
                         <TextInput
                             placeholder="Search help topics..."
                             placeholderTextColor="#6B7280"
                             style={styles.searchInput}
                         />
-                    </View>
+                    </View> */}
                 </SafeAreaView>
             </View>
 
-            {(route.params as any)?.mode === 'driver' ? (
+            {isDriver ? (
                 <DriverBottomNavBar activeTab="SUPPORT" />
             ) : (
                 <BottomNavBar activeTab="SUPPORT" />
@@ -293,7 +291,7 @@ const styles = StyleSheet.create({
         fontSize: 28,
         fontWeight: '800',
         color: '#FFFFFF',
-        marginBottom: 4,
+        marginBottom: 8,
     },
     headerSubtitle: {
         fontSize: 14,
@@ -321,12 +319,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
-    searchInput: {
-        flex: 1,
-        color: '#FFFFFF',
-        fontSize: 14,
-        padding: 0, // Reset default padding
-    },
+    // searchInput: {
+    //     flex: 1,
+    //     color: '#FFFFFF',
+    //     fontSize: 14,
+    //     padding: 0, // Reset default padding
+    // },
     statusCard: {
         backgroundColor: '#FFFFFF',
         borderRadius: 24,
@@ -361,57 +359,45 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         paddingHorizontal: 20,
     },
-    gridContainer: {
-        flexDirection: 'row',
-        gap: 16, // Check RN version compatibility or use marginLeft
-        justifyContent: 'space-between',
+    sosButtonContainer: {
         marginBottom: 24,
-    },
-    gridCard: {
-        flex: 1, // Equal width
-        backgroundColor: '#FFFFFF',
+        marginTop: 0,
+       },
+    sosButton: {
+        backgroundColor: '#DC2626', // Bright Red
         borderRadius: 24,
         padding: 24,
+        flexDirection: 'row',
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
-        marginRight: 8, // Gap shim if gap not supported
-        marginLeft: 8,
+        shadowColor: '#DC2626',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+        elevation: 10,
     },
-    gridIconContainer: {
-        width: 48,
-        height: 45,
-        borderRadius: 24,
+    sosIconCircle: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 12,
+        marginRight: 16,
     },
-    gridTitle: {
-        fontSize: 14,
-        fontWeight: '800',
-        color: '#111827',
-        marginBottom: 2,
-        textAlign: 'center',
+    sosTextContainer: {
+        flex: 1,
     },
-    gridSubtitle: {
-        fontSize: 11,
-        color: '#6B7280',
-        textAlign: 'center',
+    sosTitle: {
+        fontSize: 18,
+        fontWeight: '900',
+        color: '#FFFFFF',
+        letterSpacing: 1,
+        marginBottom: 4,
     },
-    waitBadge: {
-        backgroundColor: '#ECFDF5',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
-        marginTop: 4,
-    },
-    waitText: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: '#059669',
+    sosSubtitle: {
+        fontSize: 12,
+        color: 'rgba(255, 255, 255, 0.8)',
+        fontWeight: '600',
     },
     sectionHeaderRow: {
         flexDirection: 'row',

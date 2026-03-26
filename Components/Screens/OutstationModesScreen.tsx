@@ -100,7 +100,8 @@ const OutstationModesScreen = () => {
                 rideData: item,
                 mode: 'POOLING',
                 fromLocation,
-                toLocation
+                toLocation,
+                seats
             })}
         >
             <View style={styles.cardHeader}>
@@ -156,8 +157,10 @@ const OutstationModesScreen = () => {
                 rideData: item,
                 mode: 'RENTAL',
                 fromLocation,
-                toLocation
+                toLocation,
+                seats
             })}
+
         >
             <View style={styles.cardHeader}>
                 <View style={[styles.iconContainer, { backgroundColor: item.color }]}>

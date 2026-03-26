@@ -65,14 +65,19 @@ const RideSelectionScreen = () => {
 
     const estimateFare = (distKm: number, durMin: number, type: string) => {
         const rates: any = {
-            SHARE_CAR: { base: 50, perKm: 12, perMin: 1.5 },
-            DIRECT_CAR: { base: 60, perKm: 15, perMin: 2.0 },
-            AUTO: { base: 30, perKm: 9, perMin: 1.0 },
-            BIKE_POOL: { base: 20, perKm: 6, perMin: 0.8 },
+            SHARE_CAR: { base: 50, perKm: 14, perMin: 1.5, minFare: 80, baseDist: 2 },
+            DIRECT_CAR: { base: 80, perKm: 16, perMin: 2.5, minFare: 120, baseDist: 2 },
+            AUTO: { base: 40, perKm: 8, perMin: 1, minFare: 50, baseDist: 1.5 },
+            BIKE_POOL: { base: 20, perKm: 6, perMin: 0.9, minFare: 25, baseDist: 1 },
         };
         const r = rates[type] || rates.SHARE_CAR;
-        const total = r.base + distKm * r.perKm + durMin * r.perMin;
-        return Math.round(total);
+
+        // Base fare covers first r.baseDist km
+        const distanceCharge = Math.max(0, distKm - r.baseDist) * r.perKm;
+        const timeCharge = durMin * r.perMin;
+        const total = r.base + distanceCharge + timeCharge;
+
+        return Math.max(r.minFare, Math.round(total));
     };
 
     // Reset selected ride when switching modes
@@ -89,14 +94,9 @@ const RideSelectionScreen = () => {
         const dist = calculatedDistance || 5;
         const dur = calculatedEta || 15;
         const fare = estimateFare(dist, dur, selectedRide);
+        const label = selectedRide.replace('_', ' ');
 
-        switch (selectedRide) {
-            case 'SHARE_CAR': return `Confirm Share Car (₹${fare})`;
-            case 'BIKE_POOL': return `Confirm Bike Pool (₹${fare})`;
-            case 'DIRECT_CAR': return `Confirm Direct Car (₹${fare})`;
-            case 'AUTO': return `Confirm Auto Rickshaw (₹${fare})`;
-            default: return 'Confirm';
-        }
+        return `Confirm ${label} (₹${fare})`;
     };
 
     const handleConfirm = () => {
@@ -300,17 +300,19 @@ const RideSelectionScreen = () => {
                                         </View>
                                         <View>
                                             <Text style={styles.rideTitle}>Share Car</Text>
-                                            <Text style={styles.rideSubtitle}>Up to 2 stops, save 40%</Text>
+                                            <Text style={styles.rideSubtitle}>
+                                                {calculatedDistance ? `${calculatedDistance} km` : '... km'} • {calculatedEta ? `${calculatedEta} MINS` : '... MINS'}
+                                            </Text>
                                         </View>
                                     </View>
                                     <View style={styles.rideInfoRight}>
                                         <Text style={styles.ridePrice}>
-                                            ₹{estimateFare(calculatedDistance || 5, calculatedEta || 15, 'SHARE_CAR')}
+                                            {calculatedDistance 
+                                                ? `₹${estimateFare(calculatedDistance, calculatedEta || 15, 'SHARE_CAR')}`
+                                                : 'Calculating...'}
                                         </Text>
                                         <View style={styles.etaContainer}>
-                                            <Text style={styles.etaText}>
-                                                {calculatedEta ? `${calculatedEta} MINS` : '6 MINS'}
-                                            </Text>
+                                            <Text style={styles.etaText}>SAVE 40%</Text>
                                         </View>
                                     </View>
                                 </TouchableOpacity>
@@ -324,18 +326,20 @@ const RideSelectionScreen = () => {
                                             <FontAwesomeIcon icon={faMotorcycle} size={24} color="#7C3AED" />
                                         </View>
                                         <View>
-                                            <Text style={styles.rideTitle}>Bike Pool</Text>
-                                            <Text style={styles.rideSubtitle}>Swift & eco-friendly</Text>
+                                            <Text style={styles.rideTitle}>Bike</Text>
+                                            <Text style={styles.rideSubtitle}>
+                                                {calculatedDistance ? `${calculatedDistance} km` : '... km'} • {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.7))} MINS` : '... MINS'}
+                                            </Text>
                                         </View>
                                     </View>
                                     <View style={styles.rideInfoRight}>
                                         <Text style={styles.ridePrice}>
-                                            ₹{estimateFare(calculatedDistance || 5, calculatedEta || 15, 'BIKE_POOL')}
+                                            {calculatedDistance 
+                                                ? `₹${estimateFare(calculatedDistance, Math.max(1, Math.floor((calculatedEta || 15) * 0.7)), 'BIKE_POOL')}`
+                                                : 'Calculating...'}
                                         </Text>
                                         <View style={styles.etaContainer}>
-                                            <Text style={styles.etaText}>
-                                                {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.7))} MINS` : '3 MINS'}
-                                            </Text>
+                                            <Text style={styles.etaText}>FASTEST</Text>
                                         </View>
                                     </View>
                                 </TouchableOpacity>
@@ -355,17 +359,19 @@ const RideSelectionScreen = () => {
                                         </View>
                                         <View>
                                             <Text style={styles.rideTitle}>Direct Car</Text>
-                                            <Text style={styles.rideSubtitle}>Private door-to-door</Text>
+                                            <Text style={styles.rideSubtitle}>
+                                                {calculatedDistance ? `${calculatedDistance} km` : '... km'} • {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.8))} MINS` : '... MINS'}
+                                            </Text>
                                         </View>
                                     </View>
                                     <View style={styles.rideInfoRight}>
                                         <Text style={styles.ridePrice}>
-                                            ₹{estimateFare(calculatedDistance || 5, calculatedEta || 15, 'DIRECT_CAR')}
+                                            {calculatedDistance 
+                                                ? `₹${estimateFare(calculatedDistance, Math.max(1, Math.floor((calculatedEta || 15) * 0.8)), 'DIRECT_CAR')}`
+                                                : 'Calculating...'}
                                         </Text>
                                         <View style={styles.etaContainer}>
-                                            <Text style={styles.etaText}>
-                                                {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.8))} MINS` : '4 MINS'}
-                                            </Text>
+                                            <Text style={styles.etaText}>PRIVATE</Text>
                                         </View>
                                     </View>
                                 </TouchableOpacity>
@@ -376,22 +382,23 @@ const RideSelectionScreen = () => {
                                 >
                                     <View style={styles.rideInfoLeft}>
                                         <View style={styles.rideIconContainer}>
-                                            {/* Simulating Auto icon with similar shape or car for now */}
                                             <FontAwesomeIcon icon={faTruckPickup} size={24} color="#D97706" />
                                         </View>
                                         <View>
                                             <Text style={styles.rideTitle}>Auto Rickshaw</Text>
-                                            <Text style={styles.rideSubtitle}>Open-air, beat traffic</Text>
+                                            <Text style={styles.rideSubtitle}>
+                                                {calculatedDistance ? `${calculatedDistance} km` : '... km'} • {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.6))} MINS` : '... MINS'}
+                                            </Text>
                                         </View>
                                     </View>
                                     <View style={styles.rideInfoRight}>
                                         <Text style={styles.ridePrice}>
-                                            ₹{estimateFare(calculatedDistance || 5, calculatedEta || 15, 'AUTO')}
+                                            {calculatedDistance 
+                                                ? `₹${estimateFare(calculatedDistance, Math.max(1, Math.floor((calculatedEta || 15) * 0.6)), 'AUTO')}`
+                                                : 'Calculating...'}
                                         </Text>
                                         <View style={styles.etaContainer}>
-                                            <Text style={styles.etaText}>
-                                                {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.6))} MINS` : '2 MINS'}
-                                            </Text>
+                                            <Text style={styles.etaText}>ECONOMY</Text>
                                         </View>
                                     </View>
                                 </TouchableOpacity>

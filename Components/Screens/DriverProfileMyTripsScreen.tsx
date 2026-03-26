@@ -108,7 +108,13 @@ const DriverProfileMyTripsScreen = () => {
                 <Text style={styles.statusLabel}>
                     {activeTab === 'Scheduled' ? 'SCHEDULED' : activeTab.toUpperCase()}
                 </Text>
-                <TouchableOpacity style={styles.detailsButton}>
+                <TouchableOpacity 
+                    style={styles.detailsButton}
+                    onPress={() => {
+                        const targetTab = (activeTab === 'Scheduled' || activeTab === 'Ongoing') ? 'Upcoming' : 'Past';
+                        (navigation as any).navigate('DriverMyTrips', { initialTab: targetTab });
+                    }}
+                >
                     <Text style={styles.detailsText}>DETAILS</Text>
                     <FontAwesomeIcon icon={faChevronRight} size={10} color="#9CA3AF" />
                 </TouchableOpacity>

@@ -59,8 +59,9 @@ interface AuthContextType {
     login: (credentials: any) => Promise<any>;
     loginWithGoogle: (role: string) => Promise<void>;
     register: (userData: any) => Promise<any>;
-    verifyOTP: (phone: string, otp: string) => Promise<void>;
-    whatsappLogin: (phone: string) => Promise<void>;
+    verifyOTP: (phone: string, otp: string, role?: string) => Promise<void>;
+    whatsappLogin: (phone: string, role?: string) => Promise<void>;
+
     logout: () => Promise<void>;
     refetchUser: () => Promise<void>;
 }
@@ -123,10 +124,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    const whatsappLogin = async (phone: string) => {
+    const whatsappLogin = async (phone: string, role?: string) => {
         setIsLoading(true);
         try {
-            const response = await authService.whatsappLogin(phone);
+            const response = await authService.whatsappLogin(phone, role);
             if (response.data?.otpRequired) {
                 // Return or set some state if needed, but the Screen will handle navigation
             }
@@ -138,10 +139,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    const verifyOTP = async (phone: string, otp: string) => {
+    const verifyOTP = async (phone: string, otp: string, role?: string) => {
         setIsLoading(true);
         try {
-            const data = await authService.verifyOTP(phone, otp);
+            const data = await authService.verifyOTP(phone, otp, role);
             if (data.data.token) {
                 setUser(data.data);
             }
@@ -151,6 +152,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setIsLoading(false);
         }
     };
+
 
     const loginWithGoogle = async (role: string = 'passenger') => {
         setIsLoading(true);
