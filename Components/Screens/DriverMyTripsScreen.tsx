@@ -323,9 +323,9 @@ const DriverMyTripsScreen = () => {
                                                 <Text style={styles.cancelledBadgeText}>CANCELLED</Text>
                                             </View>
                                         )}
-                                        <TouchableOpacity style={[styles.viewDetailsButton, trip.status === 'cancelled' && { flex: 0, paddingHorizontal: 20 }]}>
+                                        {/* <TouchableOpacity style={[styles.viewDetailsButton, trip.status === 'cancelled' && { flex: 0, paddingHorizontal: 20 }]}>
                                             <Text style={styles.viewDetailsText}>View Trip Summary</Text>
-                                        </TouchableOpacity>
+                                        </TouchableOpacity> */}
                                     </View>
                                 )}
                             </View>

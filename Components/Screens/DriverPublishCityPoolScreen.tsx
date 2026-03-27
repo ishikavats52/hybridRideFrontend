@@ -420,11 +420,23 @@ const DriverPublishCityPoolScreen = () => {
                                 vehicle: user?.driverDetails?.vehicle?.model || "City Pool Vehicle",
                                 vehicleType: vehicleType,
                                 totalSeats: vehicleType === 'BIKE' ? 1 : (vehicleType === 'AUTO' ? 3 : (frontSeatCount + middleRowCount + backRowCount)),
-                                pricePerSeat: parseFloat(frontPrice), // Fallback
+                                pricePerSeat: (() => {
+                                    const activePrices = [];
+                                    if (vehicleType === 'BIKE') {
+                                        activePrices.push(parseFloat(frontPrice) || 15);
+                                    } else if (vehicleType === 'AUTO') {
+                                        activePrices.push(parseFloat(middlePrice) || 12);
+                                    } else {
+                                        if (frontSeatCount > 0) activePrices.push(parseFloat(frontPrice) || 15);
+                                        if (middleRowCount > 0) activePrices.push(parseFloat(middlePrice) || 12);
+                                        if (backRowCount > 0) activePrices.push(parseFloat(backPrice) || 10);
+                                    }
+                                    return activePrices.length > 0 ? Math.min(...activePrices) : 15;
+                                })(),
                                 seatPricing: { // The new granular schema
-                                    front: parseFloat(frontPrice) || 0,
-                                    middle: parseFloat(middlePrice) || 0,
-                                    back: parseFloat(backPrice) || 0
+                                    front: parseFloat(frontPrice) || 15,
+                                    middle: parseFloat(middlePrice) || 12,
+                                    back: parseFloat(backPrice) || 10
                                 },
                                 preferences: {
                                     womenOnly: isWomenOnly

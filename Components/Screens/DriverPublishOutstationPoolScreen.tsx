@@ -430,7 +430,19 @@ const DriverPublishOutstationPoolScreen = () => {
                                 vehicle: user?.driverDetails?.vehicle?.model || "Outstation SUV",
                                 vehicleType: vehicleType,
                                 totalSeats: vehicleType === 'BIKE' ? 1 : (vehicleType === 'AUTO' ? 3 : (frontSeatCount + middleRowCount + backRowCount)),
-                                pricePerSeat: Math.min(Number(frontPrice) || 45, Number(middlePrice) || 35, Number(backPrice) || 30), // Min advertised price fallback
+                                pricePerSeat: (() => {
+                                    const activePrices = [];
+                                    if (vehicleType === 'BIKE') {
+                                        activePrices.push(Number(frontPrice) || 45);
+                                    } else if (vehicleType === 'AUTO') {
+                                        activePrices.push(Number(middlePrice) || 35);
+                                    } else {
+                                        if (frontSeatCount > 0) activePrices.push(Number(frontPrice) || 45);
+                                        if (middleRowCount > 0) activePrices.push(Number(middlePrice) || 35);
+                                        if (backRowCount > 0) activePrices.push(Number(backPrice) || 30);
+                                    }
+                                    return activePrices.length > 0 ? Math.min(...activePrices) : 35;
+                                })(),
                                 seatPricing: {
                                     front: Number(frontPrice) || 45,
                                     middle: Number(middlePrice) || 35,

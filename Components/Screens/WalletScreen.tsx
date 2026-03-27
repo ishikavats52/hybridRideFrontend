@@ -43,6 +43,7 @@ const WalletScreen = () => {
     const [isLoading, setIsLoading] = React.useState(true);
     const [refreshing, setRefreshing] = React.useState(false);
     const [hasPending, setHasPending] = React.useState(false);
+    const [amountToAdd, setAmountToAdd] = React.useState('500');
 
     const onRefresh = React.useCallback(async () => {
         setRefreshing(true);
@@ -207,10 +208,24 @@ const WalletScreen = () => {
                             <Text style={styles.balanceLabel}>CURRENT BALANCE</Text>
                             <Text style={styles.balanceAmount}>₹{balance}</Text>
                             
-                            <View style={{ flexDirection: 'row', gap: 10 }}>
-                                <TouchableOpacity style={styles.addMoneyButton} onPress={() => handleAddMoney(500)}>
+                            <View style={styles.topupInputContainer}>
+                                <View style={styles.topupInner}>
+                                    <Text style={styles.currencyPrefix}>₹</Text>
+                                    <TextInput
+                                        style={styles.topupInput}
+                                        value={amountToAdd}
+                                        onChangeText={setAmountToAdd}
+                                        keyboardType="numeric"
+                                        placeholder="500"
+                                        placeholderTextColor="#9CA3AF"
+                                    />
+                                </View>
+                                <TouchableOpacity 
+                                    style={styles.addMoneyButton} 
+                                    onPress={() => handleAddMoney(Number(amountToAdd) || 0)}
+                                >
                                     <FontAwesomeIcon icon={faPlus} size={12} color="#111827" style={{ marginRight: 8 }} />
-                                    <Text style={styles.addMoneyText}>Add ₹500</Text>
+                                    <Text style={styles.addMoneyText}>Add Cash</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -224,10 +239,16 @@ const WalletScreen = () => {
                                 {[100, 200, 1000].map(amt => (
                                     <TouchableOpacity 
                                         key={amt} 
-                                        style={{ flex: 1, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center' }}
-                                        onPress={() => handleAddMoney(amt)}
+                                        style={[
+                                            styles.quickAmtBtn,
+                                            amountToAdd === amt.toString() && styles.quickAmtBtnActive
+                                        ]}
+                                        onPress={() => setAmountToAdd(amt.toString())}
                                     >
-                                        <Text style={{ fontWeight: '700', color: '#374151' }}>₹{amt}</Text>
+                                        <Text style={[
+                                            styles.quickAmtText,
+                                            amountToAdd === amt.toString() && styles.quickAmtTextActive
+                                        ]}>₹{amt}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
@@ -363,8 +384,57 @@ const styles = StyleSheet.create({
     },
     addMoneyText: {
         color: '#111827',
-        fontWeight: '700',
+        fontWeight: '800',
         fontSize: 14,
+    },
+    topupInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    topupInner: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#1F2937',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        height: 48,
+        borderWidth: 1,
+        borderColor: '#374151',
+    },
+    currencyPrefix: {
+        color: '#9CA3AF',
+        fontSize: 16,
+        fontWeight: '700',
+        marginRight: 4,
+    },
+    topupInput: {
+        flex: 1,
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '800',
+        padding: 0,
+    },
+    quickAmtBtn: {
+        flex: 1,
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+    },
+    quickAmtBtnActive: {
+        borderColor: '#059669',
+        backgroundColor: '#ECFDF5',
+    },
+    quickAmtText: {
+        fontWeight: '700',
+        color: '#374151',
+    },
+    quickAmtTextActive: {
+        color: '#059669',
     },
     sectionHeaderRow: {
         flexDirection: 'row',
