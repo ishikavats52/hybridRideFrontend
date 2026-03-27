@@ -32,7 +32,8 @@ import {
     faLeaf, // For CO2
     faSeedling,
     faPen,
-    faCamera
+    faCamera,
+    faUniversity
 } from '@fortawesome/free-solid-svg-icons';
 import { useNavigation } from '@react-navigation/native';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -268,6 +269,21 @@ const DriverProfileScreen = () => {
                                 <Text style={styles.menuText}>Payment Methods</Text>
                             </View>
                             <Text style={styles.menuSideText}>Hybrid Wallet</Text>
+                            <FontAwesomeIcon icon={faChevronRight} size={14} color="#D1D5DB" />
+                        </TouchableOpacity>
+
+                        <View style={styles.divider} />
+
+                        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('DriverBankDetails' as never)}>
+                            <View style={styles.menuIconBox}>
+                                <FontAwesomeIcon icon={faUniversity} size={18} color="#8B5CF6" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.menuText}>Bank Account Details</Text>
+                            </View>
+                            {user?.driverDetails?.bankDetails?.bankName && (
+                                <Text style={styles.menuSideText}>Linked: {user.driverDetails.bankDetails.bankName}</Text>
+                            )}
                             <FontAwesomeIcon icon={faChevronRight} size={14} color="#D1D5DB" />
                         </TouchableOpacity>
                     </View>

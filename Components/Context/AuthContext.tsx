@@ -31,6 +31,12 @@ interface User {
         };
         earnings?: number;
         isOnline?: boolean;
+        bankDetails?: {
+            accountNumber?: string;
+            ifscCode?: string;
+            bankName?: string;
+            accountHolderName?: string;
+        };
     };
     verificationStatus?: {
         email: boolean;

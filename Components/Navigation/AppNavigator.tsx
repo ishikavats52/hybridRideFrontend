@@ -107,6 +107,7 @@ const AppNavigator = () => {
                         <Stack.Screen name="DriverMyTrips" component={DriverMyTripsScreen} />
                         <Stack.Screen name="DriverProfile" component={DriverProfileScreen} />
                         <Stack.Screen name="DriverEditProfile" component={require('../Screens/DriverEditProfileScreen').default} />
+                        <Stack.Screen name="DriverBankDetails" component={require('../Screens/DriverBankDetailsScreen').default} />
                         <Stack.Screen name="DriverProfileMyTrips" component={require('../Screens/DriverProfileMyTripsScreen').default} />
                         <Stack.Screen name="DriverOnline" component={DriverOnlineScreen} />
                         <Stack.Screen name="DriverRideNavigation" component={DriverRideNavigationScreen} />

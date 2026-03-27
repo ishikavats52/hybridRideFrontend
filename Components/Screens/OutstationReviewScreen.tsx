@@ -72,8 +72,8 @@ const OutstationReviewScreen = () => {
     const distanceText = ride.route?.distance ? `~${ride.route.distance} km` : '~612 km';
     const durationText = ride.route?.duration ? `${Math.floor(ride.route.duration / 60)}h ${ride.route.duration % 60}m` : '3h 30m';
 
-    const incrementFare = () => setBaseFare(prev => prev + 5);
-    const decrementFare = () => setBaseFare(prev => (prev > 10 ? prev - 5 : prev));
+    const incrementFare = () => setBaseFare((prev: number) => prev + 5);
+    const decrementFare = () => setBaseFare((prev: number) => (prev > 10 ? prev - 5 : prev));
 
     const handleConfirm = () => {
         if (rideData?.tripId) {
@@ -226,11 +226,8 @@ const OutstationReviewScreen = () => {
                         </View>
                         <View style={{ flex: 1, marginLeft: 12 }}>
                             <Text style={styles.paymentLabel}>PAYMENT METHOD</Text>
-                            <Text style={styles.paymentValue}>Hybrid Wallet</Text>
+                            <Text style={styles.paymentValue}>Sanchari Wallet</Text>
                         </View>
-                        <TouchableOpacity>
-                            <Text style={styles.changeButton}>Change</Text>
-                        </TouchableOpacity>
                     </View>
 
                     <View style={{ height: 100 }} />

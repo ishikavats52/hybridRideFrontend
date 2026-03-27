@@ -411,10 +411,7 @@ const RideSelectionScreen = () => {
                                 <FontAwesomeIcon icon={faWallet} size={20} color="#059669" style={{ marginRight: 12 }} />
                                 <Text style={styles.walletText}>Sanchari Wallet</Text>
                             </View>
-                            <TouchableOpacity style={styles.laterButton}>
-                                <FontAwesomeIcon icon={faClock} size={14} color="#111827" style={{ marginRight: 6 }} />
-                                <Text style={styles.laterText}>LATER</Text>
-                            </TouchableOpacity>
+
                         </View>
 
                     </ScrollView>

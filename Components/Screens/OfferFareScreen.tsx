@@ -13,6 +13,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faPlus, faMinus, faRocket, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import { requestRide, updateRideStatus } from '../../Services/rideService';
+import { useAuth } from '../Context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -32,6 +33,7 @@ const OfferFareScreen = () => {
     const durationMins = params.durationMins || 20;
     const suggestedFare = params.estimatedFare || 150;
 
+    const { user } = useAuth();
     const [price, setPrice] = useState(suggestedFare);
     const [loading, setLoading] = useState(false);
 
@@ -40,6 +42,20 @@ const OfferFareScreen = () => {
 
     const handleFindDriver = async () => {
         if (loading) return;
+
+        // Balance Check
+        if ((user?.walletBalance || 0) < price) {
+            Alert.alert(
+                'Insufficient Balance', 
+                'You need to top up your wallet to book a ride.',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Top Up', onPress: () => navigation.navigate('Wallet' as never) }
+                ]
+            );
+            return;
+        }
+
         setLoading(true);
         try {
             const result = await requestRide({
@@ -52,7 +68,7 @@ const OfferFareScreen = () => {
                 distanceKm,
                 durationMins,
                 offeredFare: price,
-                paymentMethod: 'cash',
+                paymentMethod: 'wallet',
             });
 
             if (result.success) {

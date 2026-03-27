@@ -32,7 +32,6 @@ const SeatPreferenceScreen = () => {
     // Granular seat distribution state
     const [seatDistribution, setSeatDistribution] = useState({ FRONT: 0, MIDDLE: 0, BACK: 0 });
     const [showReviewSheet, setShowReviewSheet] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState<'cash' | 'wallet'>('cash');
     const { user } = useAuth();
 
     const ROW_LIMITS = {
@@ -97,16 +96,14 @@ const SeatPreferenceScreen = () => {
         // If this is an backend-connected trip
         if (rideData?.tripId) {
             try {
-                // Check wallet balance if wallet is selected
-                if (paymentMethod === 'wallet') {
-                    const price = parseFloat(calculatedPrice);
-                    if ((user?.walletBalance || 0) < price) {
-                        Alert.alert('Insufficient Balance', 'You don\'t have enough balance in your Sanchari Wallet. Please top up or choose Cash.');
-                        return;
-                    }
+                // Check wallet balance
+                const price = parseFloat(getPrice());
+                if ((user?.walletBalance || 0) < price) {
+                    Alert.alert('Insufficient Balance', 'You don\'t have enough balance in your Sanchari Wallet. Please top up.');
+                    return;
                 }
 
-                const response = await poolService.bookSeat(rideData.tripId, passengers, paymentMethod);
+                const response = await poolService.bookSeat(rideData.tripId, passengers, 'wallet');
                 if (!response.success) {
                     Alert.alert('Booking Failed', response.message || 'Could not book seat');
                     return; // Halt navigation if booking fails
@@ -399,26 +396,25 @@ const SeatPreferenceScreen = () => {
 
                         <Text style={[styles.reviewLabel, { marginBottom: 16 }]}>PAYMENT METHOD</Text>
                         <View style={styles.paymentSelector}>
-                            <TouchableOpacity 
-                                style={[styles.paymentOption, paymentMethod === 'cash' && styles.paymentOptionActive]} 
-                                onPress={() => setPaymentMethod('cash')}
+                            <View 
+                                style={[styles.paymentOption, styles.paymentOptionActive]} 
                             >
-                                <FontAwesomeIcon icon={faMoneyBillWave} size={16} color={paymentMethod === 'cash' ? '#FFFFFF' : '#6B7280'} />
-                                <Text style={[styles.paymentText, paymentMethod === 'cash' && styles.paymentTextActive]}>Cash</Text>
-                                {paymentMethod === 'cash' && <FontAwesomeIcon icon={faCheckCircle} size={14} color="#FFFFFF" style={{ marginLeft: 'auto' }} />}
-                            </TouchableOpacity>
-
-                            <TouchableOpacity 
-                                style={[styles.paymentOption, paymentMethod === 'wallet' && styles.paymentOptionActive]} 
-                                onPress={() => setPaymentMethod('wallet')}
-                            >
-                                <FontAwesomeIcon icon={faWallet} size={16} color={paymentMethod === 'wallet' ? '#FFFFFF' : '#6B7280'} />
+                                <FontAwesomeIcon icon={faWallet} size={16} color="#FFFFFF" />
                                 <View style={{ marginLeft: 12 }}>
-                                    <Text style={[styles.paymentText, paymentMethod === 'wallet' && styles.paymentTextActive]}>Sanchari Cash</Text>
-                                    <Text style={[styles.balanceText, paymentMethod === 'wallet' && styles.balanceTextActive]}>Bal: ₹{user?.walletBalance || 0}</Text>
+                                    <Text style={[styles.paymentText, styles.paymentTextActive]}>Sanchari Cash (Wallet)</Text>
+                                    <Text style={[styles.balanceText, styles.balanceTextActive]}>Available: ₹{user?.walletBalance || 0}</Text>
                                 </View>
-                                {paymentMethod === 'wallet' && <FontAwesomeIcon icon={faCheckCircle} size={14} color="#FFFFFF" style={{ marginLeft: 'auto' }} />}
-                            </TouchableOpacity>
+                                <FontAwesomeIcon icon={faCheckCircle} size={14} color="#FFFFFF" style={{ marginLeft: 'auto' }} />
+                            </View>
+                            
+                            {(user?.walletBalance || 0) < parseFloat(getPrice()) && (
+                                <TouchableOpacity 
+                                    style={styles.topUpHint}
+                                    onPress={() => navigation.navigate('Wallet' as never)}
+                                >
+                                    <Text style={styles.topUpHintText}>Insufficient balance. Tap to Top-up.</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
 
                         <View style={[styles.reviewRow, styles.reviewTotalRow]}>
@@ -847,6 +843,20 @@ const styles = StyleSheet.create({
     },
     balanceTextActive: {
         color: '#9CA3AF',
+    },
+    topUpHint: {
+        backgroundColor: '#FEF2F2',
+        padding: 12,
+        borderRadius: 12,
+        marginTop: 8,
+        borderWidth: 1,
+        borderColor: '#FEE2E2',
+    },
+    topUpHintText: {
+        color: '#DC2626',
+        fontSize: 13,
+        fontWeight: '700',
+        textAlign: 'center',
     },
 });
 

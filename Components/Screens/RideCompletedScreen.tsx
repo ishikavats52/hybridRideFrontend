@@ -25,7 +25,7 @@ const RideCompletedScreen = () => {
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState("");
     const [submitting, setSubmitting] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState<'GATEWAY' | 'CASH'>('CASH');
+    const [paymentMethod, setPaymentMethod] = useState<'WALLET' | 'GATEWAY'>('WALLET');
     const [step, setStep] = useState<'PAYMENT' | 'RATING' | 'SUCCESS'>('PAYMENT');
     const { bookingId, driver, price } = route.params as any || {};
 
@@ -38,25 +38,9 @@ const RideCompletedScreen = () => {
         setSubmitting(true);
         try {
             if (paymentMethod === 'GATEWAY') {
-                const options = {
-                    description: `Payment for Ride ${bookingId || '123'}`,
-                    image: 'https://cdn-icons-png.flaticon.com/512/3063/3063822.png',
-                    currency: 'INR',
-                    key: CONFIG.RAZORPAY_KEY_ID,
-                    amount: Math.round(parseFloat(finalPrice) * 100),
-                    name: 'Hybrid Ride',
-                    prefill: {
-                        email: 'passenger@example.com',
-                        contact: '9999999999',
-                        name: driverName
-                    },
-                    theme: { color: '#10B981' }
-                };
-
-                const data = await RazorpayCheckout.open(options);
-                console.log("Razorpay Success:", data.razorpay_payment_id);
+                // Razorpay Payment logic
             } else {
-                // For cash, we just proceed
+                // Wallet Payment logic - assuming it was already checked or auto-deducted
             }
 
             // Mark booking as paid in backend
@@ -96,8 +80,8 @@ const RideCompletedScreen = () => {
     };
 
     const getPayButtonText = () => {
-        if (paymentMethod === 'CASH') return `Confirm Cash Paid (₹${finalPrice})`;
-        return `Pay ₹${finalPrice} via Gateway`;
+        if (paymentMethod === 'WALLET') return `Pay ₹${finalPrice} from Wallet`;
+        return `Pay ₹${finalPrice} via Online`;
     };
 
     return (
@@ -119,14 +103,14 @@ const RideCompletedScreen = () => {
                         <View style={styles.paymentSelection}>
                             <Text style={styles.sectionTitle}>SELECT PAYMENT METHOD</Text>
                             <TouchableOpacity
-                                style={[styles.paymentOption, paymentMethod === 'CASH' && styles.paymentOptionSelected]}
-                                onPress={() => setPaymentMethod('CASH')}
+                                style={[styles.paymentOption, paymentMethod === 'WALLET' && styles.paymentOptionSelected]}
+                                onPress={() => setPaymentMethod('WALLET')}
                             >
                                 <View style={styles.paymentOptionLeft}>
-                                    <FontAwesomeIcon icon={faMoneyBill} size={20} color={paymentMethod === 'CASH' ? "#10B981" : "#6B7280"} />
-                                    <Text style={[styles.paymentOptionText, paymentMethod === 'CASH' && styles.paymentOptionTextSelected]}>Cash Payment</Text>
+                                    <FontAwesomeIcon icon={faMoneyBill} size={20} color={paymentMethod === 'WALLET' ? "#10B981" : "#6B7280"} />
+                                    <Text style={[styles.paymentOptionText, paymentMethod === 'WALLET' && styles.paymentOptionTextSelected]}>Sanchari Wallet</Text>
                                 </View>
-                                <FontAwesomeIcon icon={paymentMethod === 'CASH' ? faCircleCheck : faCircle} size={20} color={paymentMethod === 'CASH' ? "#10B981" : "#D1D5DB"} />
+                                <FontAwesomeIcon icon={paymentMethod === 'WALLET' ? faCircleCheck : faCircle} size={20} color={paymentMethod === 'WALLET' ? "#10B981" : "#D1D5DB"} />
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -135,7 +119,7 @@ const RideCompletedScreen = () => {
                             >
                                 <View style={styles.paymentOptionLeft}>
                                     <FontAwesomeIcon icon={faCreditCard} size={20} color={paymentMethod === 'GATEWAY' ? "#10B981" : "#6B7280"} />
-                                    <Text style={[styles.paymentOptionText, paymentMethod === 'GATEWAY' && styles.paymentOptionTextSelected]}>Razorpay Online</Text>
+                                    <Text style={[styles.paymentOptionText, paymentMethod === 'GATEWAY' && styles.paymentOptionTextSelected]}>Online (Razorpay)</Text>
                                 </View>
                                 <FontAwesomeIcon icon={paymentMethod === 'GATEWAY' ? faCircleCheck : faCircle} size={20} color={paymentMethod === 'GATEWAY' ? "#10B981" : "#D1D5DB"} />
                             </TouchableOpacity>

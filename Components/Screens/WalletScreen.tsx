@@ -6,6 +6,10 @@ import {
     TouchableOpacity,
     ScrollView,
     Alert,
+    Modal,
+    TextInput,
+    ActivityIndicator,
+    RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -15,6 +19,9 @@ import {
     faBolt,
     faWallet,
     faHeart,
+    faUniversity,
+    faIdCard,
+    faUser,
 } from '@fortawesome/free-solid-svg-icons';
 import BottomNavBar from '../Navigation/BottomNavBar';
 import DriverBottomNavBar from '../Navigation/DriverBottomNavBar';
@@ -34,6 +41,14 @@ const WalletScreen = () => {
     const [balance, setBalance] = React.useState('0.00');
     const [transactions, setTransactions] = React.useState<any[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
+    const [refreshing, setRefreshing] = React.useState(false);
+    const [hasPending, setHasPending] = React.useState(false);
+
+    const onRefresh = React.useCallback(async () => {
+        setRefreshing(true);
+        await Promise.all([fetchWalletData(), refetchUser()]);
+        setRefreshing(false);
+    }, []);
 
     const formatActivityDate = (dateStr: string) => {
         if (!dateStr) return '';
@@ -45,9 +60,10 @@ const WalletScreen = () => {
         try {
             setIsLoading(true);
             const res = await getMyWalletData();
-            if (res.success && res.data) {
-                setBalance(parseFloat(res.data.balance || 0).toFixed(2));
-                setTransactions(res.data.transactions || []);
+            if (res.success) {
+                setBalance(parseFloat(res.balance || 0).toFixed(2));
+                setTransactions(res.transactions || []);
+                setHasPending(res.hasPending || false);
             }
         } catch (error) {
             console.error('Failed to fetch wallet data', error);
@@ -104,24 +120,38 @@ const WalletScreen = () => {
         }
     };
 
-    const handleWithdraw = () => {
+    const handleRequestWithdrawal = async () => {
         const amountNum = parseFloat(balance);
         if (amountNum < 100) {
             Alert.alert('Minimum Balance', 'You need at least ₹100 to withdraw.');
             return;
         }
 
+        const isBankComplete = user?.driverDetails?.bankDetails?.accountNumber && user?.driverDetails?.bankDetails?.ifscCode && user?.driverDetails?.bankDetails?.bankName && user?.driverDetails?.bankDetails?.accountHolderName;
+        
+        if (!isBankComplete) {
+            Alert.alert('Bank Details Missing', 'Please provide your bank account details before withdrawing.', [
+                { text: 'Add Details', onPress: () => navigation.navigate('DriverBankDetails' as never) },
+                { text: 'Cancel', style: 'cancel' }
+            ]);
+            return;
+        }
+
+        const maskedAcc = user?.driverDetails?.bankDetails?.accountNumber 
+            ? `****${user.driverDetails.bankDetails.accountNumber.slice(-4)}`
+            : '';
+
         Alert.alert(
-            'Instant Withdrawal',
-            `Withdraw ₹${balance}?\n\nNote: A 2% processing fee (₹${(amountNum * 0.02).toFixed(2)}) will be deducted. Net amount: ₹${(amountNum * 0.98).toFixed(2)}`,
+            'Confirm Withdrawal',
+            `Withdraw ₹${balance} to your linked account (${user?.driverDetails?.bankDetails?.bankName} ${maskedAcc})?`,
             [
                 { text: 'Cancel', style: 'cancel' },
                 { 
-                    text: 'Withdraw Now', 
+                    text: 'Confirm', 
                     onPress: async () => {
-                        const res = await requestWithdrawal(amountNum, 'instant');
+                        const res = await requestWithdrawal(amountNum, 'bank');
                         if (res.success) {
-                            Alert.alert('Request Sent', 'Your withdrawal request has been submitted and will be processed soon.');
+                            Alert.alert('Request Submitted', 'Your withdrawal request has been sent for admin approval. It will be processed within 24-48 hours.');
                             fetchWalletData();
                         } else {
                             Alert.alert('Error', res.message || 'Failed to request withdrawal');
@@ -140,27 +170,51 @@ const WalletScreen = () => {
                     <Text style={styles.headerSubtitle}>{isDriver ? 'Your Earnings & Payouts' : 'Manage your Sanchari Cash'}</Text>
                 </View>
 
-                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <ScrollView 
+                    contentContainerStyle={styles.scrollContent} 
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#059669']} />
+                    }
+                >
 
-                    {/* Balance Card */}
-                    <View style={[styles.balanceCard, isDriver && { backgroundColor: '#059669' }]}>
-                        <Text style={styles.balanceLabel}>CURRENT BALANCE</Text>
-                        <Text style={styles.balanceAmount}>₹{balance}</Text>
-                        
-                        <View style={{ flexDirection: 'row', gap: 10 }}>
-                            {!isDriver ? (
+                    {/* Balance Cards for Driver */}
+                    {isDriver ? (
+                        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
+                            <View style={[styles.miniCard, { backgroundColor: '#1F2937' }]}>
+                                <Text style={styles.miniCardLabel}>TOTAL RECEIVED</Text>
+                                <Text style={styles.miniCardAmount}>₹{(user?.driverDetails?.earnings || 0).toFixed(2)}</Text>
+                                <Text style={styles.miniCardSub}>Full Payment (Gross)</Text>
+                            </View>
+                            <View style={[styles.miniCard, { backgroundColor: '#059669' }]}>
+                                <Text style={styles.miniCardLabel}>WITHDRAWABLE</Text>
+                                <Text style={styles.miniCardAmount}>₹{balance}</Text>
+                                <Text style={[styles.miniCardSub, { color: '#D1FAE5', marginBottom: 8 }]}>After 2% Commission</Text>
+                                <TouchableOpacity 
+                                    style={[styles.withdrawBtn, (hasPending || parseFloat(balance) < 100) && { opacity: 0.6 }]} 
+                                    onPress={handleRequestWithdrawal}
+                                    disabled={hasPending}
+                                >
+                                    <Text style={styles.withdrawBtnText}>
+                                        {hasPending ? 'PENDING...' : 'Request Withdrawal'}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    ) : (
+                        /* Standard Balance Card for Passenger */
+                        <View style={styles.balanceCard}>
+                            <Text style={styles.balanceLabel}>CURRENT BALANCE</Text>
+                            <Text style={styles.balanceAmount}>₹{balance}</Text>
+                            
+                            <View style={{ flexDirection: 'row', gap: 10 }}>
                                 <TouchableOpacity style={styles.addMoneyButton} onPress={() => handleAddMoney(500)}>
                                     <FontAwesomeIcon icon={faPlus} size={12} color="#111827" style={{ marginRight: 8 }} />
                                     <Text style={styles.addMoneyText}>Add ₹500</Text>
                                 </TouchableOpacity>
-                            ) : (
-                                <TouchableOpacity style={[styles.addMoneyButton, { backgroundColor: '#FFFFFF' }]} onPress={handleWithdraw}>
-                                    <FontAwesomeIcon icon={faArrowRight} size={12} color="#059669" style={{ marginRight: 8 }} />
-                                    <Text style={[styles.addMoneyText, { color: '#059669' }]}>Withdraw All</Text>
-                                </TouchableOpacity>
-                            )}
+                            </View>
                         </View>
-                    </View>
+                    )}
 
                     {/* Quick Top-up for Passengers */}
                     {!isDriver && (
@@ -406,6 +460,112 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
         color: '#10B981',
+    },
+    miniCard: {
+        flex: 1,
+        borderRadius: 20,
+        padding: 16,
+        justifyContent: 'space-between',
+        height: 140,
+        elevation: 4,
+    },
+    miniCardLabel: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#E5E7EB',
+        letterSpacing: 0.5,
+    },
+    miniCardAmount: {
+        fontSize: 22,
+        fontWeight: '800',
+        color: '#FFFFFF',
+    },
+    miniCardSub: {
+        fontSize: 10,
+        color: '#9CA3AF',
+        fontWeight: '600',
+    },
+    withdrawBtn: {
+        backgroundColor: '#FFFFFF',
+        paddingVertical: 6,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    withdrawBtnText: {
+        color: '#059669',
+        fontSize: 12,
+        fontWeight: '800',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 30,
+        borderTopRightRadius: 30,
+        padding: 24,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#111827',
+        marginBottom: 4,
+    },
+    modalSub: {
+        fontSize: 14,
+        color: '#6B7280',
+        marginBottom: 24,
+    },
+    inputGroup: {
+        marginBottom: 16,
+    },
+    inputLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#374151',
+        marginBottom: 8,
+    },
+    inputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        height: 50,
+        backgroundColor: '#F9FAFB',
+    },
+    input: {
+        flex: 1,
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#111827',
+    },
+    saveBtn: {
+        backgroundColor: '#059669',
+        height: 56,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    saveBtnText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '800',
+    },
+    cancelBtn: {
+        height: 56,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    cancelBtnText: {
+        color: '#6B7280',
+        fontSize: 14,
+        fontWeight: '700',
     },
 });
 
