@@ -38,10 +38,11 @@ const DriverRideNavigationScreen = () => {
     const bookingId = params.bookingId || null;
     const passenger = params.passenger || {};
     const pickupAddr = params.pickup || 'Pickup location';
-    const dropoffAddr = params.dropoff || 'Dropoff location';
     const fare = params.fare || 0;
+    const initialDropoff = params.dropoff || 'Dropoff location';
 
     const [viewState, setViewState] = useState<'PICKUP' | 'VERIFY' | 'DROP_OFF'>(params.initialViewState || 'PICKUP');
+    const [dropoffAddr, setDropoffAddr] = useState(initialDropoff);
     const [otp, setOtp] = useState(['', '', '', '']);
     const inputs = useRef<Array<TextInput | null>>([]);
 
@@ -110,6 +111,9 @@ const DriverRideNavigationScreen = () => {
                             latitude: b.dropoff.coordinates[1],
                             longitude: b.dropoff.coordinates[0]
                         });
+                    }
+                    if (b.dropoff?.address && b.dropoff.address !== 'Hidden until OTP') {
+                        setDropoffAddr(b.dropoff.address);
                     }
                 }
             }
@@ -313,6 +317,10 @@ const DriverRideNavigationScreen = () => {
                         latitudeDelta: 0.1,
                         longitudeDelta: 0.1,
                     }}
+                    zoomEnabled={true}
+                    scrollEnabled={true}
+                    pitchEnabled={true}
+                    rotateEnabled={true}
                 >
                     {currentDestination && (
                         <MapViewDirections

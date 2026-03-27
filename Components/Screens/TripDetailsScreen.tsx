@@ -39,8 +39,8 @@ const TripDetailsScreen = () => {
 
     // Dynamic Trip Stats from params
     const tripStats = {
-        time: duration ? `${duration} min` : '24 min',
-        distance: distance ? `${distance} km` : '13.2 km',
+        time: duration ? `${duration} min` : '--',
+        distance: distance ? `${distance} km` : '--',
         minPrice: Math.round(price * 0.9),
         maxPrice: Math.round(price * 1.1),
     };
