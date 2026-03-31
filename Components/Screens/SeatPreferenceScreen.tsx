@@ -161,19 +161,17 @@ const SeatPreferenceScreen = () => {
     const getPrice = () => {
         // Use exact driver defined pricing if available
         if (rideData?.seatPricing) {
-            const frontPrice = (rideData.seatPricing.front || rideData.pricePerSeat || 12.00) * seatDistribution.FRONT;
-            const middlePrice = (rideData.seatPricing.middle || rideData.pricePerSeat || 12.00) * seatDistribution.MIDDLE;
-            const backPrice = (rideData.seatPricing.back || rideData.pricePerSeat || 12.00) * seatDistribution.BACK;
+            const frontPrice = (rideData.seatPricing.front || rideData.pricePerSeat || rideData.price || 12.00) * seatDistribution.FRONT;
+            const middlePrice = (rideData.seatPricing.middle || rideData.pricePerSeat || rideData.price || 12.00) * seatDistribution.MIDDLE;
+            const backPrice = (rideData.seatPricing.back || rideData.pricePerSeat || rideData.price || 12.00) * seatDistribution.BACK;
 
             return (frontPrice + middlePrice + backPrice).toFixed(2);
         }
 
-        // Fallback for older legacy rides that don't have seatPricing map
+        // Fallback: Use base price exactly for all seats (no hidden markups/discounts)
         const basePrice = rideData?.price || rideData?.pricePerSeat || 12.00;
-        const frontPrice = basePrice * 1.2 * seatDistribution.FRONT; // Subtle markup for front
-        const middlePrice = basePrice * 1.0 * seatDistribution.MIDDLE;
-        const backPrice = basePrice * 0.9 * seatDistribution.BACK; // Subtle discount for back
-        return (frontPrice + middlePrice + backPrice).toFixed(2);
+        const total = basePrice * (seatDistribution.FRONT + seatDistribution.MIDDLE + seatDistribution.BACK);
+        return total.toFixed(2);
     };
 
     return (

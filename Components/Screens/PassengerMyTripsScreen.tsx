@@ -196,8 +196,15 @@ const PassengerMyTripsScreen = () => {
                             </>
                         )}
                     </View>
-                    <Text style={styles.priceText}>₹{myTotal}</Text>
+                    <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.priceText}>₹{myTotal}</Text>
+                        {myBooking?.paymentStatus === 'paid' && (
+                            <Text style={{ fontSize: 10, color: '#10B981', fontWeight: '700', marginTop: 2 }}>PAID</Text>
+                        )}
+                    </View>
                 </View>
+
+
 
                 {uiStatus === 'Upcoming' && (
                     <TouchableOpacity 
@@ -461,6 +468,29 @@ const styles = StyleSheet.create({
         color: '#EF4444',
         fontWeight: '700',
         fontSize: 14,
+    },
+    otpContainer: {
+        marginTop: 16,
+        padding: 12,
+        backgroundColor: '#F0FDF4',
+        borderRadius: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderWidth: 1,
+        borderColor: '#DCFCE7',
+    },
+    otpLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#166534',
+        letterSpacing: 0.5,
+    },
+    otpValue: {
+        fontSize: 18,
+        fontWeight: '900',
+        color: '#111827',
+        letterSpacing: 2,
     },
 });
 

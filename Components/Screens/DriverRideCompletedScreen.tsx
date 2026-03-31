@@ -24,8 +24,7 @@ const DriverRideCompletedScreen = () => {
     } = route.params as any || {};
 
     const numericFare = parseFloat(fare?.toString()) || 0;
-    const computedPlatformFee = (numericFare * 0.2).toFixed(2);
-    const computedNet = (numericFare - parseFloat(computedPlatformFee)).toFixed(2);
+    const computedNet = numericFare.toFixed(2);
     const formattedFare = numericFare.toFixed(2);
 
     const handleFindNextRide = () => {
@@ -54,16 +53,6 @@ const DriverRideCompletedScreen = () => {
                     </View>
 
                     <View style={styles.separator} />
-
-                    {/* Breakdown */}
-                    <View style={styles.row}>
-                        <Text style={styles.subLabel}>Platform Fee (20%)</Text>
-                        <Text style={styles.subValueRed}>-₹{computedPlatformFee}</Text>
-                    </View>
-                    <View style={styles.row}>
-                        <Text style={styles.subLabel}>Taxes</Text>
-                        <Text style={styles.subValue}>₹0.00</Text>
-                    </View>
 
                     {/* Net Earnings */}
                     <View style={styles.netEarningsContainer}>

@@ -50,6 +50,7 @@ const DriverMyTripsScreen = () => {
                     bookedSeats: t.totalSeats - t.availableSeats,
                     totalSeats: t.totalSeats,
                     status: t.status,
+                    type: t.type,
                     tabStatus: t.status === 'scheduled' || t.status === 'ongoing' ? 'Upcoming' : 'Past',
                     passengers: t.passengers?.map((p: any) => ({
                         id: p.user?._id || Math.random().toString(),
@@ -58,6 +59,8 @@ const DriverMyTripsScreen = () => {
                         seats: p.seatsBooked || 1,
                         initial: p.user?.name?.charAt(0) || 'P',
                         status: p.bookingStatus || 'confirmed',
+                        paymentStatus: p.paymentStatus,
+                        otp: p.otp,
                         reason: p.cancellationReason || '',
                         color: p.bookingStatus === 'cancelled' ? '#EF4444' : '#10B981'
                     })) || []
@@ -263,6 +266,10 @@ const DriverMyTripsScreen = () => {
                                                         )}
                                                     </View>
                                                     <Text style={styles.pSeats}>{p.seats} Seat{p.seats > 1 ? 's' : ''}</Text>
+                                                    {p.paymentStatus === 'paid' && (
+                                                        <Text style={{ fontSize: 9, color: '#10B981', fontWeight: '800' }}>PAID</Text>
+                                                    )}
+
                                                     {p.status === 'cancelled' && p.reason && (
                                                         <Text style={styles.pReasonText}>Reason: {p.reason}</Text>
                                                     )}
@@ -681,6 +688,27 @@ const styles = StyleSheet.create({
         color: '#EF4444',
         marginTop: 2,
         fontStyle: 'italic',
+    },
+    pOtpBadge: {
+        marginTop: 4,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F3F4F6',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+        alignSelf: 'flex-start',
+    },
+    pOtpLabel: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: '#64748B',
+    },
+    pOtpValue: {
+        fontSize: 12,
+        fontWeight: '900',
+        color: '#111827',
+        letterSpacing: 1,
     }
 });
 
