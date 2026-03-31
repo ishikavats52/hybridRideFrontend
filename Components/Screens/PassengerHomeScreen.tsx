@@ -165,6 +165,16 @@ const PassengerHomeScreen = () => {
                                 pickupCoords: ride.pickupCoords,
                                 dropoffCoords: ride.dropoffCoords,
                             });
+                        } else if (status === 'completed' && ride.paymentStatus === 'pending') {
+                            (navigation as any).navigate('RideCompleted', {
+                                bookingId: ride._id,
+                                driver: {
+                                    name: ride.driver?.name || 'Driver',
+                                    initial: (ride.driver?.name?.[0] || 'D').toUpperCase(),
+                                },
+                                price: ride.finalFare || ride.offeredFare || "0.00",
+                                paymentMethod: ride.paymentMethod
+                            });
                         }
                     }
                 } catch (error) {
