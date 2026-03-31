@@ -20,7 +20,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../Context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
-import { getNearbyRides, acceptRide } from '../../Services/rideService';
+import { getNearbyRides, acceptRide, getDriverEarnings } from '../../Services/rideService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -32,6 +32,7 @@ const DriverOnlineScreen = () => {
     const [currentRideIndex, setCurrentRideIndex] = useState(0);
     const [accepting, setAccepting] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [todayEarnings, setTodayEarnings] = useState<number>(0);
 
     const [pulseAnim] = useState(new Animated.Value(1));
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -47,6 +48,19 @@ const DriverOnlineScreen = () => {
                 Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
             ])
         ).start();
+    }, []);
+
+    // ─── Fetch today's earnings on mount ────────────────────
+    useEffect(() => {
+        const fetchEarnings = async () => {
+            try {
+                const result = await getDriverEarnings();
+                if (result?.success && result?.data?.today !== undefined) {
+                    setTodayEarnings(result.data.today);
+                }
+            } catch { /* silent fail — shows ₹0 as fallback */ }
+        };
+        fetchEarnings();
     }, []);
 
     // ─── Fetch pending rides & poll every 8 sec ─────────────
@@ -150,7 +164,7 @@ const DriverOnlineScreen = () => {
                         </View>
                         <View>
                             <Text style={styles.earnedLabel}>EARNED TODAY</Text>
-                            <Text style={styles.earnedValue}>₹0.00</Text>
+                            <Text style={styles.earnedValue}>₹{todayEarnings.toFixed(2)}</Text>
                         </View>
                     </View>
 

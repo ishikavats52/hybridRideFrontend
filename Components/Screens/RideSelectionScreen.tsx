@@ -69,6 +69,7 @@ const RideSelectionScreen = () => {
             DIRECT_CAR: { base: 80, perKm: 16, perMin: 2.5, minFare: 120, baseDist: 2 },
             AUTO: { base: 40, perKm: 8, perMin: 1, minFare: 50, baseDist: 1.5 },
             BIKE_POOL: { base: 20, perKm: 6, perMin: 0.9, minFare: 25, baseDist: 1 },
+            BIKE_INSTANT: { base: 25, perKm: 7, perMin: 1, minFare: 30, baseDist: 1 },
         };
         const r = rates[type] || rates.SHARE_CAR;
 
@@ -80,6 +81,20 @@ const RideSelectionScreen = () => {
         return Math.max(r.minFare, Math.round(total));
     };
 
+    // ─── Distance-based eligibility ───────────────────────────────────────────
+    // Bikes are city-only transport. For trips > 100 km, only cars are allowed.
+    // This mirrors Rapido/Ola's vehicle eligibility rules.
+    const LONG_DISTANCE_THRESHOLD_KM = 100;
+    const isLongDistance = (calculatedDistance ?? 0) > LONG_DISTANCE_THRESHOLD_KM;
+
+    // Auto-deselect bike/auto if distance exceeds threshold
+    React.useEffect(() => {
+        if (isLongDistance && (selectedRide === 'BIKE_POOL' || selectedRide === 'BIKE_INSTANT' || selectedRide === 'AUTO' || selectedRide ==='AUTO_INSTANT')) {
+            setSelectedRide(rideType === 'POOLING' ? 'SHARE_CAR' : 'DIRECT_CAR');
+        }
+    }, [isLongDistance]);
+    // ─────────────────────────────────────────────────────────────────────────
+
     // Reset selected ride when switching modes
     const handleRideTypeChange = (type: string) => {
         setRideType(type);
@@ -90,21 +105,43 @@ const RideSelectionScreen = () => {
         }
     };
 
-    const getConfirmText = () => {
-        const dist = calculatedDistance || 5;
-        const dur = calculatedEta || 15;
-        const fare = estimateFare(dist, dur, selectedRide);
-        const label = selectedRide.replace('_', ' ');
-
-        return `Confirm ${label} (₹${fare})`;
+    const labelMap: Record<string, string> = {
+        SHARE_CAR: 'SHARE CAR',
+        BIKE_POOL: 'BIKE',
+        DIRECT_CAR: 'DIRECT CAR',
+        AUTO: 'AUTO',
+        BIKE_INSTANT: 'BIKE',
     };
+
+    const getConfirmText = () => {
+        const label = labelMap[selectedRide] || selectedRide.replace('_', ' ');
+        return `Confirm ${label} (₹${getActiveFare()})`;
+    };
+
+    // ─── Single source of truth for the currently-selected fare ────────────────
+    // Each vehicle type uses a different ETA multiplier in the card renders.
+    // This function mirrors those exact multipliers so the confirm button
+    // ALWAYS shows the same price as the card above it.
+    const getActiveFare = (): number => {
+        const dist = calculatedDistance || 5;
+        const eta = calculatedEta || 15;
+        switch (selectedRide) {
+            case 'SHARE_CAR':    return estimateFare(dist, eta, 'SHARE_CAR');
+            case 'BIKE_POOL':    return estimateFare(dist, Math.max(1, Math.floor(eta * 0.7)), 'BIKE_POOL');
+            case 'DIRECT_CAR':  return estimateFare(dist, Math.max(1, Math.floor(eta * 0.8)), 'DIRECT_CAR');
+            case 'AUTO':         return estimateFare(dist, Math.max(1, Math.floor(eta * 0.6)), 'AUTO');
+            case 'BIKE_INSTANT': return estimateFare(dist, Math.max(1, Math.floor(eta * 0.6)), 'BIKE_INSTANT');
+            default:             return estimateFare(dist, eta, selectedRide);
+        }
+    };
+    // ────────────────────────────────────────────────────────────────────────
 
     const handleConfirm = () => {
         const dist = calculatedDistance || 5;
         const dur = calculatedEta || 15;
-        const fare = estimateFare(dist, dur, selectedRide);
+        const fare = getActiveFare(); // Uses same multipliers as the card
 
-        if (selectedRide === 'BIKE_POOL') {
+        if (selectedRide === 'BIKE_POOL' || selectedRide === 'BIKE_INSTANT') {
             // Skip seat preference for Bike
             (navigation as any).navigate('TripDetails', {
                 rideData: { type: rideType, vehicle: selectedRide, price: fare },
@@ -317,32 +354,43 @@ const RideSelectionScreen = () => {
                                     </View>
                                 </TouchableOpacity>
 
-                                <TouchableOpacity
-                                    style={[styles.rideOption, selectedRide === 'BIKE_POOL' && styles.selectedRideOption]}
-                                    onPress={() => setSelectedRide('BIKE_POOL')}
-                                >
-                                    <View style={styles.rideInfoLeft}>
-                                        <View style={styles.rideIconContainer}>
-                                            <FontAwesomeIcon icon={faMotorcycle} size={24} color="#7C3AED" />
+                                {/* Bike Pool — hidden for trips over 100 km */}
+                                {!isLongDistance ? (
+                                    <TouchableOpacity
+                                        style={[styles.rideOption, selectedRide === 'BIKE_POOL' && styles.selectedRideOption]}
+                                        onPress={() => setSelectedRide('BIKE_POOL')}
+                                    >
+                                        <View style={styles.rideInfoLeft}>
+                                            <View style={styles.rideIconContainer}>
+                                                <FontAwesomeIcon icon={faMotorcycle} size={24} color="#7C3AED" />
+                                            </View>
+                                            <View>
+                                                <Text style={styles.rideTitle}>Bike</Text>
+                                                <Text style={styles.rideSubtitle}>
+                                                    {calculatedDistance ? `${calculatedDistance} km` : '... km'} • {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.7))} MINS` : '... MINS'}
+                                                </Text>
+                                            </View>
                                         </View>
-                                        <View>
-                                            <Text style={styles.rideTitle}>Bike</Text>
-                                            <Text style={styles.rideSubtitle}>
-                                                {calculatedDistance ? `${calculatedDistance} km` : '... km'} • {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.7))} MINS` : '... MINS'}
+                                        <View style={styles.rideInfoRight}>
+                                            <Text style={styles.ridePrice}>
+                                                {calculatedDistance 
+                                                    ? `₹${estimateFare(calculatedDistance, Math.max(1, Math.floor((calculatedEta || 15) * 0.7)), 'BIKE_POOL')}`
+                                                    : 'Calculating...'}
                                             </Text>
+                                            <View style={styles.etaContainer}>
+                                                <Text style={styles.etaText}>FASTEST</Text>
+                                            </View>
                                         </View>
-                                    </View>
-                                    <View style={styles.rideInfoRight}>
-                                        <Text style={styles.ridePrice}>
-                                            {calculatedDistance 
-                                                ? `₹${estimateFare(calculatedDistance, Math.max(1, Math.floor((calculatedEta || 15) * 0.7)), 'BIKE_POOL')}`
-                                                : 'Calculating...'}
+                                    </TouchableOpacity>
+                                ) : (
+                                    /* Info chip shown when bike is unavailable for long distance */
+                                    <View style={styles.vehicleUnavailableChip}>
+                                        <FontAwesomeIcon icon={faMotorcycle} size={16} color="#9CA3AF" />
+                                        <Text style={styles.vehicleUnavailableText}>
+                                            Bike not available for trips over {LONG_DISTANCE_THRESHOLD_KM} km
                                         </Text>
-                                        <View style={styles.etaContainer}>
-                                            <Text style={styles.etaText}>FASTEST</Text>
-                                        </View>
                                     </View>
-                                </TouchableOpacity>
+                                )}
                             </>
                         )}
 
@@ -376,32 +424,79 @@ const RideSelectionScreen = () => {
                                     </View>
                                 </TouchableOpacity>
 
-                                <TouchableOpacity
-                                    style={[styles.rideOption, selectedRide === 'AUTO' && styles.selectedRideOptionInstant]}
-                                    onPress={() => setSelectedRide('AUTO')}
-                                >
-                                    <View style={styles.rideInfoLeft}>
-                                        <View style={styles.rideIconContainer}>
-                                            <FontAwesomeIcon icon={faTruckPickup} size={24} color="#D97706" />
+                                {/* Auto Rickshaw \u2014 hidden for trips over 100 km */}
+                                {!isLongDistance ? (
+                                    <TouchableOpacity
+                                        style={[styles.rideOption, selectedRide === 'AUTO' && styles.selectedRideOptionInstant]}
+                                        onPress={() => setSelectedRide('AUTO')}
+                                    >
+                                        <View style={styles.rideInfoLeft}>
+                                            <View style={styles.rideIconContainer}>
+                                                <FontAwesomeIcon icon={faTruckPickup} size={24} color="#D97706" />
+                                            </View>
+                                            <View>
+                                                <Text style={styles.rideTitle}>Auto Rickshaw</Text>
+                                                <Text style={styles.rideSubtitle}>
+                                                    {calculatedDistance ? `${calculatedDistance} km` : '... km'} • {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.6))} MINS` : '... MINS'}
+                                                </Text>
+                                            </View>
                                         </View>
-                                        <View>
-                                            <Text style={styles.rideTitle}>Auto Rickshaw</Text>
-                                            <Text style={styles.rideSubtitle}>
-                                                {calculatedDistance ? `${calculatedDistance} km` : '... km'} • {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.6))} MINS` : '... MINS'}
+                                        <View style={styles.rideInfoRight}>
+                                            <Text style={styles.ridePrice}>
+                                                {calculatedDistance
+                                                    ? `₹${estimateFare(calculatedDistance, Math.max(1, Math.floor((calculatedEta || 15) * 0.6)), 'AUTO')}`
+                                                    : 'Calculating...'}
                                             </Text>
+                                            <View style={styles.etaContainer}>
+                                                <Text style={styles.etaText}>ECONOMY</Text>
+                                            </View>
                                         </View>
-                                    </View>
-                                    <View style={styles.rideInfoRight}>
-                                        <Text style={styles.ridePrice}>
-                                            {calculatedDistance 
-                                                ? `₹${estimateFare(calculatedDistance, Math.max(1, Math.floor((calculatedEta || 15) * 0.6)), 'AUTO')}`
-                                                : 'Calculating...'}
+                                    </TouchableOpacity>
+                                ) : (
+                                    <View style={styles.vehicleUnavailableChip}>
+                                        <FontAwesomeIcon icon={faTruckPickup} size={16} color="#9CA3AF" />
+                                        <Text style={styles.vehicleUnavailableText}>
+                                            Auto not available for trips over {LONG_DISTANCE_THRESHOLD_KM} km
                                         </Text>
-                                        <View style={styles.etaContainer}>
-                                            <Text style={styles.etaText}>ECONOMY</Text>
-                                        </View>
                                     </View>
-                                </TouchableOpacity>
+                                )}
+
+                                {/* Bike Instant — hidden for trips over 100 km */}
+                                {!isLongDistance ? (
+                                    <TouchableOpacity
+                                        style={[styles.rideOption, selectedRide === 'BIKE_INSTANT' && styles.selectedRideOptionInstant]}
+                                        onPress={() => setSelectedRide('BIKE_INSTANT')}
+                                    >
+                                        <View style={styles.rideInfoLeft}>
+                                            <View style={styles.rideIconContainer}>
+                                                <FontAwesomeIcon icon={faMotorcycle} size={24} color="#7C3AED" />
+                                            </View>
+                                            <View>
+                                                <Text style={styles.rideTitle}>Bike</Text>
+                                                <Text style={styles.rideSubtitle}>
+                                                    {calculatedDistance ? `${calculatedDistance} km` : '... km'} • {calculatedEta ? `${Math.max(1, Math.floor(calculatedEta * 0.6))} MINS` : '... MINS'}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                        <View style={styles.rideInfoRight}>
+                                            <Text style={styles.ridePrice}>
+                                                {calculatedDistance
+                                                    ? `₹${estimateFare(calculatedDistance, Math.max(1, Math.floor((calculatedEta || 15) * 0.6)), 'BIKE_INSTANT')}`
+                                                    : 'Calculating...'}
+                                            </Text>
+                                            <View style={[styles.etaContainer, { backgroundColor: '#F5F3FF' }]}>
+                                                <Text style={[styles.etaText, { color: '#7C3AED' }]}>FASTEST</Text>
+                                            </View>
+                                        </View>
+                                    </TouchableOpacity>
+                                ) : (
+                                    <View style={styles.vehicleUnavailableChip}>
+                                        <FontAwesomeIcon icon={faMotorcycle} size={16} color="#9CA3AF" />
+                                        <Text style={styles.vehicleUnavailableText}>
+                                            Bike not available for trips over {LONG_DISTANCE_THRESHOLD_KM} km
+                                        </Text>
+                                    </View>
+                                )}
                             </>
                         )}
 
@@ -723,6 +818,25 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 18,
         fontWeight: '800',
+    },
+    vehicleUnavailableChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderStyle: 'dashed',
+        backgroundColor: '#F9FAFB',
+        marginBottom: 16,
+    },
+    vehicleUnavailableText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#9CA3AF',
+        flexShrink: 1,
     },
 });
 

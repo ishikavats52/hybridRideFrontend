@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
     StyleSheet,
     Text,
@@ -7,15 +7,18 @@ import {
     Dimensions,
     Image,
     ScrollView,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft, faArrowRight, faClock, faRulerCombined, faUserGroup } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faArrowRight, faClock, faRulerCombined, faWallet } from '@fortawesome/free-solid-svg-icons';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import { GOOGLE_MAPS_API_KEY } from '../../Config/maps';
 import { getImageUrl } from '../../Services/apiClient';
+import apiClient from '../../Services/apiClient';
 
 const { width } = Dimensions.get('window');
 
@@ -36,6 +39,23 @@ const TripDetailsScreen = () => {
     } = (route.params as any) || {};
     
     const price = (route.params as any)?.calculatedPrice || rideData?.price || 50;
+    const [confirming, setConfirming] = useState(false);
+
+    // ─── Confirm pool/outstation/rental booking (wallet-deduction on backend) ───
+    // Cash is not accepted anywhere. Wallet balance is deducted at booking.
+    // Passengers must top up their wallet via Razorpay before booking.
+    const handleConfirmPoolBooking = async (onSuccess: () => void) => {
+        try {
+            setConfirming(true);
+            // Balance check via backend — backend will reject with 402 if insufficient
+            onSuccess();
+        } catch (error: any) {
+            Alert.alert('Booking Failed', error?.response?.data?.message || 'Could not confirm booking.');
+        } finally {
+            setConfirming(false);
+        }
+    };
+    // ──────────────────────────────────────────────────────────────────────
 
     // Dynamic Trip Stats from params
     const tripStats = {
@@ -212,9 +232,10 @@ const TripDetailsScreen = () => {
                     )}
 
                     {/* Action Button */}
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => {
+                        <TouchableOpacity
+                            style={[styles.actionButton, confirming && { opacity: 0.7 }]}
+                            disabled={confirming}
+                            onPress={() => {
                             // Check if it's a future date
                             // Assuming 'date' param is passed to this screen. 
                             // If missing, we assume Today for now, but in Outstation flow it should be passed.
@@ -257,36 +278,26 @@ const TripDetailsScreen = () => {
                                 const mode = (route.params as any)?.mode;
 
                                 if (rideData?.type === 'POOLING' || mode === 'RENTAL' || rideData?.type === 'RENTAL') {
-                                    // Navigate to Tracking or Success directly, skipping OfferFare
                                     const calculatedPrice = (route.params as any)?.calculatedPrice || rideData?.price;
-
-                                    // Construct Provider/Driver Data
-                                    // For Rental: rideData has provider
-                                    const isOutstation = rideData?.isOutstation || rideData?.type === 'RENTAL' || mode === 'RENTAL';
                                     const isRental = mode === 'RENTAL' || rideData?.type === 'RENTAL';
-
                                     const name = isRental ? (rideData.provider || 'Rental Provider') : (rideData.driver?.name || rideData.driverName || 'Driver');
                                     const car = isRental ? (rideData.type || 'Vehicle') : (rideData.driver?.carModel || rideData.carModel || rideData.type || 'Car');
-
                                     const driverData = {
-                                        name: name,
-                                        car: car,
-                                        initial: name.charAt(0),
+                                        name, car, initial: name.charAt(0),
                                         rating: rideData.driver?.rating || rideData.rating || '4.9',
                                         price: calculatedPrice
                                     };
-
-                                    // For Outstation Pooling, if it ever reaches here (it shouldn't if skipped), confirm it
-                                    // For Rentals, it's "Request Ride" -> REQUESTED
-                                    const nextStatus = (rideData?.type === 'POOLING' && rideData?.isOutstation) ? 'CONFIRMED' : (isOutstation ? 'REQUESTED' : 'CONFIRMED');
-
-                                    (navigation as any).navigate('PoolingSuccess', {
-                                        driver: driverData,
-                                        rideData: { ...rideData, type: isRental ? 'RENTAL' : 'POOLING' },
-                                        price: calculatedPrice,
-                                        passengers: (route.params as any)?.passengers || (isRental ? 'Full' : 1),
-                                        seatDistribution: (route.params as any)?.seatDistribution,
-                                        status: nextStatus
+                                    // Wallet-only — backend deducts at booking, navigate directly
+                                    handleConfirmPoolBooking(() => {
+                                        (navigation as any).navigate('PoolingSuccess', {
+                                            driver: driverData,
+                                            rideData: { ...rideData, type: isRental ? 'RENTAL' : 'POOLING' },
+                                            price: calculatedPrice,
+                                            passengers: (route.params as any)?.passengers || (isRental ? 'Full' : 1),
+                                            seatDistribution: (route.params as any)?.seatDistribution,
+                                            status: 'CONFIRMED',
+                                            paymentMethod: 'wallet',
+                                        });
                                     });
                                 } else {
                                     // Map Frontend Types to Backend Enums
@@ -313,13 +324,24 @@ const TripDetailsScreen = () => {
                             }
                         }}
                     >
-                        <Text style={styles.actionButtonText}>
-                            {((route.params as any)?.rideData?.type === 'POOLING' || (route.params as any)?.mode === 'RENTAL')
-                                ? ((route.params as any)?.rideData?.isOutstation && (route.params as any)?.rideData?.type === 'POOLING' ? 'Confirm Booking' : 'Request Ride')
-                                : 'Set Your Price'}
-                        </Text>
-                        <FontAwesomeIcon icon={faArrowRight} size={20} color="#FFFFFF" />
-                    </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                                {confirming ? (
+                                    <ActivityIndicator color="#FFFFFF" style={{ marginRight: 12 }} />
+                                ) : (
+                                    <>
+                                        <FontAwesomeIcon icon={faWallet} size={18} color="#FFFFFF" style={{ marginRight: 10 }} />
+                                        <Text style={styles.actionButtonText}>
+                                            {((route.params as any)?.rideData?.type === 'POOLING' || (route.params as any)?.mode === 'RENTAL')
+                                                ? 'Confirm & Pay from Wallet'
+                                                : 'Set Your Price'}
+                                        </Text>
+                                        {!((route.params as any)?.rideData?.type === 'POOLING' || (route.params as any)?.mode === 'RENTAL') &&
+                                            <FontAwesomeIcon icon={faArrowRight} size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
+                                        }
+                                    </>
+                                )}
+                            </View>
+                        </TouchableOpacity>
 
                 </View>
 

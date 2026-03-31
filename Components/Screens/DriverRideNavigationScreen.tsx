@@ -166,6 +166,39 @@ const DriverRideNavigationScreen = () => {
         Linking.openURL(`tel:${CONFIG.CALL_CENTER_PHONE}`);
     };
 
+    // ─── Cancel Ride (driver-initiated) ─────────────────────────────────────────
+    // Drivers sometimes get stuck in the active ride loop with no way to cancel.
+    // This gives them an escape hatch on both the PICKUP and VERIFY screens.
+    const handleCancelRide = () => {
+        Alert.alert(
+            'Cancel Ride?',
+            'Are you sure you want to cancel this ride? This will notify the passenger.',
+            [
+                { text: 'No, Keep Ride', style: 'cancel' },
+                {
+                    text: 'Yes, Cancel',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            if (bookingId) {
+                                const result = await updateRideStatus(bookingId, 'cancelled', 'Driver cancelled the ride');
+                                if (!result.success) {
+                                    Alert.alert('Error', result.message || 'Could not cancel ride. Please try again.');
+                                    return;
+                                }
+                            }
+                            // Navigate back to driver home
+                            (navigation as any).navigate('DriverHome');
+                        } catch (error: any) {
+                            Alert.alert('Error', error?.response?.data?.message || 'Failed to cancel ride.');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+    // ────────────────────────────────────────────────────────────────────────
+
     const renderPickupView = () => (
         <>
             {/* Navigation Banner (Floating Top) */}
@@ -210,6 +243,11 @@ const DriverRideNavigationScreen = () => {
                 <TouchableOpacity style={styles.mainButton} onPress={handleArrived}>
                     <Text style={styles.mainButtonText}>I have Arrived</Text>
                 </TouchableOpacity>
+
+                {/* Emergency cancel — driver stuck with an active ride and no way out */}
+                <TouchableOpacity style={styles.cancelRideLink} onPress={handleCancelRide}>
+                    <Text style={styles.cancelRideLinkText}>Cancel Ride</Text>
+                </TouchableOpacity>
             </View>
         </>
     );
@@ -248,8 +286,9 @@ const DriverRideNavigationScreen = () => {
                 <TouchableOpacity style={[styles.actionButton, { flex: 1, marginRight: 8 }]} onPress={() => (navigation as any).navigate('DriverChat', { bookingId, passengerName: passenger.name })}>
                     <Text style={styles.actionButtonText}>Chat</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.actionButton, { flex: 1, marginLeft: 8, backgroundColor: '#FEF2F2' }]} onPress={() => setViewState('PICKUP')}>
-                    <Text style={[styles.actionButtonText, { color: '#DC2626' }]}>Cancel</Text>
+                {/* Cancel button now triggers real cancellation, not just state reset */}
+                <TouchableOpacity style={[styles.actionButton, { flex: 1, marginLeft: 8, backgroundColor: '#FEF2F2' }]} onPress={handleCancelRide}>
+                    <Text style={[styles.actionButtonText, { color: '#DC2626' }]}>Cancel Ride</Text>
                 </TouchableOpacity>
             </View>
         </View>
@@ -700,7 +739,18 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '700',
         color: '#0D9488', // Teal
-    }
+    },
+    cancelRideLink: {
+        alignItems: 'center',
+        paddingVertical: 14,
+        marginTop: 4,
+    },
+    cancelRideLinkText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#EF4444',
+        textDecorationLine: 'underline',
+    },
 });
 
 export default DriverRideNavigationScreen;

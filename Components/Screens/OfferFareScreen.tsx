@@ -81,7 +81,17 @@ const OfferFareScreen = () => {
             }
         } catch (error: any) {
             const msg = error?.response?.data?.message || 'Network error. Please try again.';
-            if (error?.response?.status === 409) {
+            if (error?.response?.status === 402) {
+                // Insufficient wallet balance
+                Alert.alert(
+                    'Insufficient Balance',
+                    error?.response?.data?.message || 'Please top up your wallet to book a ride.',
+                    [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Top Up Wallet', onPress: () => navigation.navigate('Wallet' as never) }
+                    ]
+                );
+            } else if (error?.response?.status === 409) {
                 // Already has an active ride — navigate to it or cancel it
                 const existingBookingId = error?.response?.data?.data?.bookingId;
                 Alert.alert('Active Ride', 'You already have an active ride.', [

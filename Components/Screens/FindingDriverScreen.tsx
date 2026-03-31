@@ -45,6 +45,9 @@ const FindingDriverScreen = () => {
         return () => clearInterval(tick);
     }, []);
 
+    const SEARCH_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     // Poll API every 5 seconds for driver acceptance
     useEffect(() => {
         if (!bookingId) return;
@@ -62,6 +65,7 @@ const FindingDriverScreen = () => {
                 if (booking.status === 'accepted' || booking.status === 'arrived') {
                     // Driver accepted! Navigate to DriverAccepted screen
                     clearInterval(pollingRef.current!);
+                    clearTimeout(timeoutRef.current!);
                     (navigation as any).navigate('DriverAccepted', {
                         bookingId: booking._id,
                         driver: {
@@ -85,8 +89,25 @@ const FindingDriverScreen = () => {
         pollingRef.current = setInterval(poll, 5000);
         poll(); // immediate first check
 
+        // ─── Auto-cancel after 5 minutes if no driver found ──────────────────────────
+        timeoutRef.current = setTimeout(async () => {
+            clearInterval(pollingRef.current!);
+            try {
+                if (bookingId) {
+                    await updateRideStatus(bookingId, 'cancelled', 'No driver found within 5 minutes');
+                }
+            } catch { }
+            Alert.alert(
+                'No Drivers Available',
+                'We could not find a driver for your ride. Your request has been cancelled. Please try again.',
+                [{ text: 'OK', onPress: () => (navigation as any).navigate('PassengerHome') }]
+            );
+        }, SEARCH_TIMEOUT_MS);
+        // ────────────────────────────────────────────────────────────────────────
+
         return () => {
             if (pollingRef.current) clearInterval(pollingRef.current);
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
     }, [bookingId]);
 
