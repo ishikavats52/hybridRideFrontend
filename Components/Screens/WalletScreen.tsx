@@ -122,9 +122,9 @@ const WalletScreen = () => {
     };
 
     const handleRequestWithdrawal = async () => {
-        const amountNum = parseFloat(balance);
-        if (amountNum < 100) {
-            Alert.alert('Minimum Balance', 'You need at least ₹100 to withdraw.');
+        const netAmount = parseFloat(balance) * 0.98;
+        if (netAmount < 100) {
+            Alert.alert('Minimum Balance', 'You need at least ₹100 net balance to withdraw.');
             return;
         }
 
@@ -144,15 +144,15 @@ const WalletScreen = () => {
 
         Alert.alert(
             'Confirm Withdrawal',
-            `Withdraw ₹${balance} to your linked account (${user?.driverDetails?.bankDetails?.bankName} ${maskedAcc})?`,
+            `Withdraw ₹${netAmount.toFixed(2)} to your linked account (${user?.driverDetails?.bankDetails?.bankName} ${maskedAcc})? (2% platform fee already deducted)`,
             [
                 { text: 'Cancel', style: 'cancel' },
                 { 
                     text: 'Confirm', 
                     onPress: async () => {
-                        const res = await requestWithdrawal(amountNum, 'bank');
+                        const res = await requestWithdrawal(netAmount, 'bank');
                         if (res.success) {
-                            Alert.alert('Request Submitted', 'Your withdrawal request has been sent for admin approval. It will be processed within 24-48 hours.');
+                            Alert.alert('Request Submitted', 'Your withdrawal request has been sent for admin approval.');
                             fetchWalletData();
                         } else {
                             Alert.alert('Error', res.message || 'Failed to request withdrawal');
@@ -189,8 +189,8 @@ const WalletScreen = () => {
                             </View>
                             <View style={[styles.miniCard, { backgroundColor: '#059669' }]}>
                                 <Text style={styles.miniCardLabel}>WITHDRAWABLE</Text>
-                                <Text style={styles.miniCardAmount}>₹{balance}</Text>
-                                <Text style={[styles.miniCardSub, { color: '#D1FAE5', marginBottom: 8 }]}>After 2% Commission</Text>
+                                <Text style={styles.miniCardAmount}>₹{(parseFloat(balance) * 0.98).toFixed(2)}</Text>
+                                <Text style={[styles.miniCardSub, { color: '#D1FAE5', marginBottom: 8 }]}>After 2% Platform Fee</Text>
                                 <TouchableOpacity 
                                     style={[styles.withdrawBtn, (hasPending || parseFloat(balance) < 100) && { opacity: 0.6 }]} 
                                     onPress={handleRequestWithdrawal}

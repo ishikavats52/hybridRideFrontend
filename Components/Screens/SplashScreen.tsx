@@ -46,8 +46,8 @@ const SplashScreen = () => {
 
                 {/* Brand Text */}
                 <View style={styles.brandContainer}>
-                    <Text style={styles.brandWhite}>Hybrid</Text>
-                    <Text style={styles.brandCyan}>Ride</Text>
+                    <Text style={styles.brandWhite}>Sanc</Text>
+                    <Text style={styles.brandCyan}>hari</Text>
                 </View>
 
                 {/* Tagline */}
